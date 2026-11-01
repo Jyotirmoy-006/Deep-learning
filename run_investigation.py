@@ -56,7 +56,7 @@ def load_or_init_models(models_dir: str = "models_saved") -> Tuple[VisualEvidenc
     if os.path.exists(cnn_path):
         cnn_model.load_state_dict(torch.load(cnn_path, map_location="cpu"))
     if os.path.exists(bilstm_path):
-        bilstm_model.load_state_dict(torch.load(bilstm_path, map_location="cpu"))
+        bilstm_model.load_state_dict(torch.load(bilstm_path, map_location="cpu"), strict=False)
     if os.path.exists(ann_path):
         ann_model.load_state_dict(torch.load(ann_path, map_location="cpu"))
 

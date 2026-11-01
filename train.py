@@ -871,7 +871,7 @@ def run_diagnostics_suite(
         "VisualEvidenceCNN": count_params(cnn),
         "ConversationBiLSTM": count_params(bilstm),
         "ANNMultimodalRiskClassifier": count_params(ann),
-        "SyntheticDataVAE": count_params(SyntheticDataVAE(7, 2, 4).to(device)),
+        "SyntheticDataVAE": count_params(SyntheticDataVAE(input_dim=7, num_classes=2, hidden_dim=24, latent_dim=4).to(device)),
     }
 
     # 3. OOV Rate per Split

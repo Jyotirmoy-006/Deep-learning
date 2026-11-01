@@ -229,6 +229,7 @@ class ConversationBiLSTM(nn.Module):
         num_layers: int = 2,
         dropout_rate: float = 0.25,
         pooling: str = "concat",  # 'concat' (Blueprint 5.2 default) or 'attention'
+        use_attention: Optional[bool] = None,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -236,6 +237,13 @@ class ConversationBiLSTM(nn.Module):
         self.num_layers = num_layers
         self.pooling = pooling.lower()
         assert self.pooling in ["concat", "attention"], f"Unknown pooling: {self.pooling}"
+
+        # Per Iteration 3 directive: attention layer is conditional on config/pooling
+        # If unused under pooling='concat', use_attention defaults to False (0 attention params).
+        if use_attention is not None:
+            self.use_attention = bool(use_attention)
+        else:
+            self.use_attention = (self.pooling == "attention")
 
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
         self.lstm = nn.LSTM(
@@ -247,8 +255,11 @@ class ConversationBiLSTM(nn.Module):
             dropout=dropout_rate if num_layers > 1 else 0.0,
         )
 
-        # Attention layer (used if pooling == 'attention' or for token importance)
-        self.attention = nn.Linear(hidden_dim * 2, 1)
+        # Attention layer is conditional: None under concat pooling unless explicitly enabled
+        if self.use_attention:
+            self.attention = nn.Linear(hidden_dim * 2, 1)
+        else:
+            self.attention = None
 
         self.fc = nn.Sequential(
             nn.Linear(hidden_dim * 2, 64),
@@ -265,9 +276,16 @@ class ConversationBiLSTM(nn.Module):
         embedded = self.embedding(x)
         lstm_out, (h_n, _) = self.lstm(embedded)
 
-        # Contextual attention weights
-        attn_scores = self.attention(lstm_out)
-        attn_weights = F.softmax(attn_scores, dim=1)
+        # Compute or fallback attention weights
+        if self.attention is not None:
+            attn_scores = self.attention(lstm_out)
+            attn_weights = F.softmax(attn_scores, dim=1)
+        else:
+            # Fallback uniform attention distribution over sequence when attention layer is disabled
+            seq_len = x.size(1)
+            attn_weights = torch.full(
+                (x.size(0), seq_len), 1.0 / max(seq_len, 1), device=x.device, dtype=torch.float32
+            )
 
         if self.pooling == "concat":
             # Blueprint 5.2 default: concatenate final forward and backward hidden states
@@ -276,6 +294,8 @@ class ConversationBiLSTM(nn.Module):
             h_backward = h_n[-1, :, :]  # Top-layer backward hidden state
             context = torch.cat([h_forward, h_backward], dim=1)  # (batch_size, hidden_dim * 2)
         elif self.pooling == "attention":
+            if self.attention is None:
+                raise ValueError("Pooling configured as 'attention' but attention layer is disabled.")
             context = torch.sum(lstm_out * attn_weights, dim=1)
         else:
             raise ValueError(f"Unsupported pooling: {self.pooling}")
@@ -283,7 +303,8 @@ class ConversationBiLSTM(nn.Module):
         out = self.fc(context)
 
         if return_attention:
-            return out, attn_weights.squeeze(-1)
+            ret_attn = attn_weights.squeeze(-1) if attn_weights.dim() == 3 else attn_weights
+            return out, ret_attn
         return out
 
     def trace_shapes(self, sample_tokens: torch.Tensor) -> List[Dict[str, Any]]:
@@ -495,6 +516,8 @@ class SyntheticDataVAE(nn.Module):
     def encode(self, x: torch.Tensor, y: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         if y is None:
             y = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+        elif y.dim() > 1:
+            y = y.squeeze(-1)
         y_onehot = F.one_hot(y.long(), num_classes=self.num_classes).float()
         enc_input = torch.cat([x, y_onehot], dim=1)
         h = self.encoder_fc(enc_input)
@@ -508,6 +531,8 @@ class SyntheticDataVAE(nn.Module):
     def decode(self, z: torch.Tensor, y: Optional[torch.Tensor] = None) -> torch.Tensor:
         if y is None:
             y = torch.zeros(z.size(0), dtype=torch.long, device=z.device)
+        elif y.dim() > 1:
+            y = y.squeeze(-1)
         y_onehot = F.one_hot(y.long(), num_classes=self.num_classes).float()
         dec_input = torch.cat([z, y_onehot], dim=1)
         return self.decoder(dec_input)

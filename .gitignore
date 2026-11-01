@@ -1,0 +1,11 @@
+# ForenSightX .gitignore
+*.db
+checkpoints/
+models_saved/
+*.pt
+results/large/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+.env

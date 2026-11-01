@@ -118,7 +118,7 @@ ann_model = ANNMultimodalRiskClassifier(input_dim=7, hidden_dim1=32, hidden_dim2
 for m, filename in [(cnn_model, "cnn_model.pt"), (bilstm_model, "bilstm_model.pt"), (ann_model, "ann_fusion_model.pt")]:
     p = os.path.join(MODELS_DIR, filename)
     if os.path.exists(p):
-        m.load_state_dict(torch.load(p, map_location="cpu"))
+        m.load_state_dict(torch.load(p, map_location="cpu"), strict=False)
     m.eval()
 
 coordinator = CaseCoordinatorAgent(
