@@ -92,7 +92,11 @@ def test_regression_vae_parameter_count_assumption03_vs_positional_bug():
     assert total_spec == 1215
 
     # 2. Iteration 2 positional argument bug: passing 4 as hidden_dim
-    vae_bug = SyntheticDataVAE(7, 2, 4)
+    # Verified keyword-only enforcement rejects positional arguments
+    with pytest.raises(TypeError):
+        SyntheticDataVAE(7, 2, 4)  # type: ignore
+
+    vae_bug = SyntheticDataVAE(input_dim=7, num_classes=2, hidden_dim=4, latent_dim=4)
     total_bug = sum(p.numel() for p in vae_bug.parameters())
     assert total_bug == 135
 

@@ -21,6 +21,7 @@ from src.models import (
     VisualEvidenceCNN,
     ConversationBiLSTM,
     ANNMultimodalRiskClassifier,
+    load_model_checkpoint,
 )
 from src.data_loader import (
     EvidenceItem,
@@ -114,12 +115,15 @@ cnn_model = VisualEvidenceCNN(in_channels=3, num_classes=1)
 bilstm_model = ConversationBiLSTM(vocab_size=max(tokenizer.vocab_size, 100), hidden_dim=64)
 ann_model = ANNMultimodalRiskClassifier(input_dim=7, hidden_dim1=32, hidden_dim2=16)
 
-# Load weights if available
-for m, filename in [(cnn_model, "cnn_model.pt"), (bilstm_model, "bilstm_model.pt"), (ann_model, "ann_fusion_model.pt")]:
+# Load weights if available via strict central loader with migration
+for m, filename, m_type in [
+    (cnn_model, "cnn_model.pt", "cnn"),
+    (bilstm_model, "bilstm_model.pt", "bilstm"),
+    (ann_model, "ann_fusion_model.pt", "ann"),
+]:
     p = os.path.join(MODELS_DIR, filename)
     if os.path.exists(p):
-        m.load_state_dict(torch.load(p, map_location="cpu"), strict=False)
-    m.eval()
+        load_model_checkpoint(m, p, model_type=m_type, device=torch.device("cpu"))
 
 coordinator = CaseCoordinatorAgent(
     cnn_model=cnn_model,

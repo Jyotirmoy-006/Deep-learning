@@ -157,7 +157,7 @@ def run_1b_parameter_audit(vocab_size: int = 524) -> Dict[str, Any]:
     bilstm_attn = ConversationBiLSTM(vocab_size=vocab_size, hidden_dim=64, pooling="attention", use_attention=True)
     ann = ANNMultimodalRiskClassifier(input_dim=7, hidden_dim1=32, hidden_dim2=16)
     vae_assumption03 = SyntheticDataVAE(input_dim=7, num_classes=2, hidden_dim=24, latent_dim=4)
-    vae_dim4_bug = SyntheticDataVAE(7, 2, 4)  # Demonstrates Iteration 2 positional argument bug
+    vae_dim4_bug = SyntheticDataVAE(input_dim=7, num_classes=2, hidden_dim=4, latent_dim=4)  # Demonstrates Iteration 2 positional argument bug
 
     def audit_module(model: nn.Module) -> List[Dict[str, Any]]:
         table = []

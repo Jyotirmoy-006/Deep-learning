@@ -11,6 +11,7 @@ Syllabus Modules:
 - Module 5: Class-Conditional VAE for Synthetic Feature Augmentation
 """
 
+import os
 import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -26,6 +27,103 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # =====================================================================
 # Module 2: Initialization, Regularization & Optimizers
 # =====================================================================
+
+# =====================================================================
+# Strict Checkpoint Loading & Migration Helpers (Iteration 4)
+# =====================================================================
+
+VALID_BILSTM_KEYS = {
+    "embedding.weight",
+    "lstm.weight_ih_l0",
+    "lstm.weight_hh_l0",
+    "lstm.bias_ih_l0",
+    "lstm.bias_hh_l0",
+    "lstm.weight_ih_l0_reverse",
+    "lstm.weight_hh_l0_reverse",
+    "lstm.bias_ih_l0_reverse",
+    "lstm.bias_hh_l0_reverse",
+    "lstm.weight_ih_l1",
+    "lstm.weight_hh_l1",
+    "lstm.bias_ih_l1",
+    "lstm.bias_hh_l1",
+    "lstm.weight_ih_l1_reverse",
+    "lstm.weight_hh_l1_reverse",
+    "lstm.bias_ih_l1_reverse",
+    "lstm.bias_hh_l1_reverse",
+    "fc.0.weight",
+    "fc.0.bias",
+    "fc.3.weight",
+    "fc.3.bias",
+    "attention.weight",
+    "attention.bias",
+}
+
+
+def migrate_bilstm_state_dict(
+    state_dict: Dict[str, torch.Tensor], target_pooling: str = "concat"
+) -> Dict[str, torch.Tensor]:
+    """
+    Named migration function for ConversationBiLSTM state dicts.
+    Explicit Allow-List:
+      Under target_pooling == 'concat', keys 'attention.weight' and 'attention.bias'
+      are safely pruned because the attention head is unallocated.
+      Under target_pooling == 'attention', no keys may be dropped.
+    Any unauthorized discrepancy or unknown key raises a RuntimeError.
+    """
+    for k in state_dict.keys():
+        if k not in VALID_BILSTM_KEYS:
+            raise RuntimeError(f"Unexpected key in state_dict not permitted by allow-list: {k}")
+
+    migrated = dict(state_dict)
+    allowed_drop_keys = {"attention.weight", "attention.bias"}
+    if target_pooling.lower() == "concat":
+        for k in list(migrated.keys()):
+            if k in allowed_drop_keys:
+                del migrated[k]
+    return migrated
+
+
+def load_model_checkpoint(
+    model: nn.Module,
+    checkpoint_path: str,
+    model_type: Optional[str] = None,
+    device: torch.device = torch.device("cpu"),
+) -> nn.Module:
+    """
+    Central strict checkpoint loader enforcing strict=True across all models.
+    Logs missing and unexpected keys; raises if non-empty after migration.
+    Verifies that every loaded model parameter exactly matches checkpoint tensor.
+    """
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
+
+    raw_state_dict = torch.load(checkpoint_path, map_location=device)
+    target_state_dict = raw_state_dict
+
+    m_type = model_type.lower() if model_type else model.__class__.__name__.lower()
+    if "bilstm" in m_type or isinstance(model, ConversationBiLSTM):
+        target_pooling = getattr(model, "pooling", "concat")
+        target_state_dict = migrate_bilstm_state_dict(raw_state_dict, target_pooling=target_pooling)
+
+    # Perform strict load (strict=True)
+    incompatible = model.load_state_dict(target_state_dict, strict=True)
+    if incompatible.missing_keys or incompatible.unexpected_keys:
+        raise RuntimeError(
+            f"Strict checkpoint load failed for {model.__class__.__name__}! "
+            f"Missing keys: {incompatible.missing_keys}, Unexpected keys: {incompatible.unexpected_keys}"
+        )
+
+    # Tensor equality assertion: verify every parameter equals the checkpoint tensor
+    for name, param in model.named_parameters():
+        if name in target_state_dict:
+            expected = target_state_dict[name].to(param.device)
+            if not torch.equal(param.data, expected):
+                raise ValueError(f"Parameter tensor mismatch after load for {name}!")
+
+    model.to(device)
+    model.eval()
+    return model
+
 
 def init_weights(model: nn.Module, method: str = "he_normal") -> nn.Module:
     """
@@ -473,14 +571,42 @@ class ANNMultimodalRiskClassifier(nn.Module):
 # Module 5: VAE - Class-Conditional Synthetic Data Augmentation
 # =====================================================================
 
+def compute_vae_parameter_count(
+    input_dim: int = 7,
+    num_classes: int = 2,
+    hidden_dim: int = 24,
+    latent_dim: int = 4,
+) -> int:
+    """
+    Closed-form mathematical formula for SyntheticDataVAE total parameter count:
+      encoder_fc:
+        Linear(input_dim + num_classes, hidden_dim)       -> (input_dim + num_classes + 1) * hidden_dim
+        Linear(hidden_dim, hidden_dim // 2)              -> (hidden_dim + 1) * (hidden_dim // 2)
+      fc_mu & fc_logvar:
+        2 * Linear(hidden_dim // 2, latent_dim)          -> 2 * (hidden_dim // 2 + 1) * latent_dim
+      decoder:
+        Linear(latent_dim + num_classes, hidden_dim // 2) -> (latent_dim + num_classes + 1) * (hidden_dim // 2)
+        Linear(hidden_dim // 2, hidden_dim)              -> (hidden_dim // 2 + 1) * hidden_dim
+        Linear(hidden_dim, input_dim)                    -> (hidden_dim + 1) * input_dim
+    """
+    h1 = hidden_dim
+    h2 = hidden_dim // 2
+    enc_params = (input_dim + num_classes + 1) * h1 + (h1 + 1) * h2
+    latent_params = 2 * (h2 + 1) * latent_dim
+    dec_params = (latent_dim + num_classes + 1) * h2 + (h2 + 1) * h1 + (h1 + 1) * input_dim
+    return enc_params + latent_params + dec_params
+
+
 class SyntheticDataVAE(nn.Module):
     """
     Class-conditional Variational Autoencoder (CVAE) for forensic feature augmentation.
     Trained strictly on the TRAIN split only. Conditioned on binary class label y in {0, 1}.
+    Enforces keyword-only instantiation via '*' to eliminate positional argument bugs.
     """
 
     def __init__(
         self,
+        *,
         input_dim: int = 7,
         num_classes: int = 2,
         hidden_dim: int = 24,
@@ -489,6 +615,7 @@ class SyntheticDataVAE(nn.Module):
         super().__init__()
         self.input_dim = input_dim
         self.num_classes = num_classes
+        self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
 
         # Encoder receives feature vector + one-hot class condition
@@ -513,6 +640,16 @@ class SyntheticDataVAE(nn.Module):
             nn.Sigmoid(),
         )
 
+    @classmethod
+    def parameter_formula(
+        cls,
+        input_dim: int = 7,
+        num_classes: int = 2,
+        hidden_dim: int = 24,
+        latent_dim: int = 4,
+    ) -> int:
+        return compute_vae_parameter_count(input_dim, num_classes, hidden_dim, latent_dim)
+
     def encode(self, x: torch.Tensor, y: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         if y is None:
             y = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
@@ -536,6 +673,11 @@ class SyntheticDataVAE(nn.Module):
         y_onehot = F.one_hot(y.long(), num_classes=self.num_classes).float()
         dec_input = torch.cat([z, y_onehot], dim=1)
         return self.decoder(dec_input)
+
+    def sample(self, num_samples: int, y: Optional[torch.Tensor] = None) -> torch.Tensor:
+        device = next(self.parameters()).device
+        z = torch.randn(num_samples, self.latent_dim, device=device)
+        return self.decode(z, y)
 
     def forward(
         self, x: torch.Tensor, y: Optional[torch.Tensor] = None

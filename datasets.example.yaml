@@ -1,0 +1,35 @@
+# ForenSightX External Dataset Configuration Template
+# Authoritative Spec: ForenSightX_Project_Architecture.docx Section 13
+# Required fields for real data ingestion:
+# - name: Canonical dataset name
+# - path: Absolute or relative directory path where raw files/metadata reside
+# - license: Open-source or enterprise forensic research license (e.g. Apache-2.0, CC-BY-4.0)
+# - task: Modality / task type ('image', 'text', or 'multimodal')
+# - id_column: Unique record identifier column in metadata CSV/JSON
+# - label_column: Binary ground truth column (0 = benign, 1 = malicious/phishing/forgery)
+# - class_names: List of class strings mapped to indices [0, 1]
+# - text_column: Column name containing raw text/email content (required for text/multimodal)
+# - file_column: Column name containing image file path or filename (required for image/multimodal)
+# - min_test_cases: Minimum required test instances for statistical power (>= 30)
+
+datasets:
+  - name: "CASIA_v2_Image_Forensics"
+    path: "data/raw/casia2"
+    license: "Research Use Only"
+    task: "image"
+    id_column: "image_id"
+    label_column: "is_tampered"
+    class_names: ["authentic", "tampered"]
+    file_column: "filepath"
+    min_test_cases: 50
+
+  - name: "Enron_Spam_Phishing_Corpus"
+    path: "data/raw/enron_phish"
+    license: "Public Domain"
+    task: "text"
+    id_column: "message_id"
+    label_column: "is_phishing"
+    class_names: ["ham", "phish"]
+    text_column: "body"
+    min_test_cases: 50
+

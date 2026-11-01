@@ -19,6 +19,7 @@ from src.models import (
     VisualEvidenceCNN,
     ConversationBiLSTM,
     ANNMultimodalRiskClassifier,
+    load_model_checkpoint,
 )
 from src.data_loader import (
     EvidenceItem,
@@ -54,11 +55,11 @@ def load_or_init_models(models_dir: str = "models_saved") -> Tuple[VisualEvidenc
     ann_path = os.path.join(models_dir, "ann_fusion_model.pt")
 
     if os.path.exists(cnn_path):
-        cnn_model.load_state_dict(torch.load(cnn_path, map_location="cpu"))
+        load_model_checkpoint(cnn_model, cnn_path, model_type="cnn")
     if os.path.exists(bilstm_path):
-        bilstm_model.load_state_dict(torch.load(bilstm_path, map_location="cpu"), strict=False)
+        load_model_checkpoint(bilstm_model, bilstm_path, model_type="bilstm")
     if os.path.exists(ann_path):
-        ann_model.load_state_dict(torch.load(ann_path, map_location="cpu"))
+        load_model_checkpoint(ann_model, ann_path, model_type="ann")
 
     cnn_model.eval()
     bilstm_model.eval()

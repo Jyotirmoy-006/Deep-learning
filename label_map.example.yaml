@@ -1,0 +1,23 @@
+# ForenSightX Binary Label Mapping Template
+# Maps disparate external dataset class annotations to standard ForenSightX binary targets:
+#   0 -> Benign / Authentic / Legitimate
+#   1 -> Malicious / Phishing / Forged / Tampered
+
+label_mapping:
+  image:
+    authentic: 0
+    clean: 0
+    original: 0
+    tampered: 1
+    forged: 1
+    spliced: 1
+    copymove: 1
+  text:
+    ham: 0
+    legitimate: 0
+    clean: 0
+    spam: 1
+    phish: 1
+    phishing: 1
+    spear_phish: 1
+
