@@ -1,0 +1,7 @@
+Experiment                          | Accuracy   | Precision  | Recall     | F1-Score   | ROC-AUC   
+-----------------------------------------------------------------------------------------------------
+Experiment_A_Text_Only              | 1.0000     | 1.0000     | 1.0000     | 1.0000     | 1.0000    
+Experiment_B_Image_Only             | 1.0000     | 1.0000     | 1.0000     | 1.0000     | 1.0000    
+Experiment_C_Text_Plus_Image        | 1.0000     | 1.0000     | 1.0000     | 1.0000     | 1.0000    
+Experiment_D_Text_Image_Metadata    | 1.0000     | 1.0000     | 1.0000     | 1.0000     | 1.0000    
+Experiment_E_Multimodal_Augmented   | 1.0000     | 1.0000     | 1.0000     | 1.0000     | 1.0000    
