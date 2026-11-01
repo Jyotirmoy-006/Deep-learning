@@ -1,0 +1,5 @@
+mode: hard_synthetic
+# Supported modes: hard_synthetic, real
+# Note: mode 'real' requires passing python -m src.data.validate_config
+validator_script: "src.data.validate_config"
+

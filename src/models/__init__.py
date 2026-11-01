@@ -98,12 +98,17 @@ def load_model_checkpoint(
         raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
 
     raw_state_dict = torch.load(checkpoint_path, map_location=device)
-    target_state_dict = raw_state_dict
+    if isinstance(raw_state_dict, dict) and "state_dict" in raw_state_dict:
+        target_state_dict = raw_state_dict["state_dict"]
+    elif isinstance(raw_state_dict, dict) and "model_state_dict" in raw_state_dict:
+        target_state_dict = raw_state_dict["model_state_dict"]
+    else:
+        target_state_dict = raw_state_dict
 
     m_type = model_type.lower() if model_type else model.__class__.__name__.lower()
     if "bilstm" in m_type or isinstance(model, ConversationBiLSTM):
         target_pooling = getattr(model, "pooling", "concat")
-        target_state_dict = migrate_bilstm_state_dict(raw_state_dict, target_pooling=target_pooling)
+        target_state_dict = migrate_bilstm_state_dict(target_state_dict, target_pooling=target_pooling)
 
     # Perform strict load (strict=True)
     incompatible = model.load_state_dict(target_state_dict, strict=True)
