@@ -161,10 +161,12 @@ def create_stratified_split(
     test_ratio: float = 0.15,
     seed: int = 42,
     manifest_path: str = "data/split_manifest.json",
+    allow_overwrite: bool = False,
 ) -> Tuple[List[MultimodalCaseItem], List[MultimodalCaseItem], List[MultimodalCaseItem], Dict[str, Any]]:
     """
     Splits cases into stratified seeded splits (train/val/test).
     Validates zero ID/hash leakage and records class distribution metrics.
+    Manifest is write-once by default; raises FileExistsError if manifest exists.
     """
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-5, "Ratios must sum to 1.0"
     rng = random.Random(seed)
@@ -238,7 +240,13 @@ def create_stratified_split(
         "manifest_sha256": None,
     }
 
-    # Persist Manifest
+    # Persist Manifest (Write-Once Enforcement)
+    if os.path.exists(manifest_path) and not allow_overwrite:
+        raise FileExistsError(
+            f"Write-once violation: Split manifest already exists at '{manifest_path}'. "
+            f"Overwriting an existing split manifest is prohibited to protect benchmark integrity."
+        )
+
     os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
     manifest_data = {
         "stats": stats,

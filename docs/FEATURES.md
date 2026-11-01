@@ -120,7 +120,7 @@ Where:
 - $a_{\text{domain}} = 0.60$ if $\text{domain}(\text{sender}) \neq \text{domain}(\text{reply\_to})$ (and both non-empty).
 - $a_{\text{spf}} = 0.50$ if $\text{headers}[\text{'spf'}] == \text{'fail'}$.
 - $a_{\text{dkim}} = 0.50$ if $\text{headers}[\text{'dkim'}] == \text{'fail'}$.
-- $a_{\text{spoof}} = 0.70$ if $\text{display\_name}$ contains executive titles (`ceo`, `admin`, `it support`, `security`) while $\text{sender}$ originates from public webmail (`gmail`, `yahoo`, `hotmail`, `proton`).
+- $a_{\text{spoof}} = 0.70$ if $\text{display\_name}$ contains executive titles (`ceo`, `chief executive`, `admin`, `it support`, `security`) while $\text{sender}$ originates from public webmail (`gmail`, `yahoo`, `hotmail`, `proton`).
 
 - `[ASSUMPTION-FEAT-EMAIL-01]` Sender and Reply-To domain divergence is assumed to indicate credential harvesting bounce redirection.
 - `[ASSUMPTION-FEAT-EMAIL-02]` High-authority display names paired with free webmail providers are assumed to indicate Business Email Compromise (BEC) impersonation.

@@ -711,3 +711,15 @@ class SyntheticDataVAE(nn.Module):
             y = torch.full((num_samples,), target_class, dtype=torch.long, device=device)
             samples = self.decode(z, y)
         return samples
+
+
+# Re-export factory functions for unified model identity pipeline
+from .factory import (
+    build_model,
+    get_default_config,
+    save_model_checkpoint,
+    load_model_from_checkpoint,
+    detect_checkpoint_pooling,
+    count_model_parameters,
+    trace_model_layer_shapes,
+)
