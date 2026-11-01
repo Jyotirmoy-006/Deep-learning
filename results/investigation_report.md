@@ -1,59 +1,54 @@
 # FORENSIGHTX — FORENSIC INVESTIGATION REPORT
-**Case ID:** `CASE-FS-2026-SUSP`  |  **Date:** 2026-11-01T11:23:34.749873  |  **Investigator:** Lead Forensic Agent
-**Case Title:** Suspected CEO Impersonation & Wire Fraud Breach
+**Case ID:** `CASE-FS-2026-BENIGN`  |  **Date:** 2026-11-01T11:58:05.252761  |  **Investigator:** Lead Forensic Agent
+**Case Title:** Routine IT Maintenance & Standup Audit
 
 ## 1. Executive Summary & Risk Assessment
-- **Overall Risk Score:** **99.99%** (HIGH RISK)
+- **Overall Risk Score:** **0.02%** (LOW RISK)
 - **Evidence Items Analyzed:** 3
 
 ### Modality Score Breakdown:
-- Visual Evidence Suspicion (CNN): 100.00%
-- Conversation/Text Suspicion (BiLSTM): 100.00%
-- Embedded URL Risk: 100.00%
-- Forensic Keyword Weight: 100.00%
-- Attachment Threat Indicator: 100.00%
+- Visual Evidence Suspicion (CNN): 0.00%
+- Conversation/Text Suspicion (BiLSTM): 0.02%
+- Embedded URL Risk: 0.00%
+- Forensic Keyword Weight: 0.00%
+- Attachment Threat Indicator: 0.00%
 - Timeline Anomaly Index: 0.00%
-- Email Structural Anomaly: 60.00%
+- Email Structural Anomaly: 0.00%
 
 ## 2. Key Forensic Indicators
-- [x] Urgency & Suspicious Language Pattern (BiLSTM)
-- [x] Credential / OTP / Wire Request Keywords Detected
-- [x] Suspicious URL / Phishing Domain Target
-- [x] Visual Tampering / Suspicious Image Artifacts (CNN)
-- [x] High-Risk Attachment File Extension
-- [x] Email Header / SPF / Display Spoofing Discrepancy
+- No acute anomalous indicators detected.
 
 ## 3. Chronological Evidence Timeline
 *Observed events reflect raw evidence records; Inferred relationships represent reconstructed sequence logic.*
 
 | Timestamp | Type | Status | Source ID | Event Description |
 |-----------|------|--------|-----------|-------------------|
-| 2026-11-01T10:38:30.928524 | HIGH | **OBSERVED** | `EVID-001` | Email event logged: Subject 'URGENT: Immediate Confidential Wire Transfer Required' |
-| 2026-11-01T10:45:30.928524 | HIGH | **OBSERVED** | `EVID-002` | Chat communication recorded: 'Please send the one-time password (OTP) sent to your mobile ...' |
-| 2026-11-01T10:53:30.928524 | HIGH | **OBSERVED** | `EVID-003` | Visual artifact/screenshot recorded (`EVID-003`) |
-| 2026-11-01T10:53:30.928524 | HIGH | **INFERRED** | `INFERRED-MAS-01` | Inferred Incident Trajectory: span of 900.0s between initiation and final logged event. |
+| 2026-11-01T10:58:04.085639 | MEDIUM | **OBSERVED** | `EVID-101` | Email event logged: Subject 'Project deployment went smoothly' |
+| 2026-11-01T11:08:04.085639 | LOW | **OBSERVED** | `EVID-102` | Chat communication recorded: 'Are we still on for the 2 PM sprint planning meeting? Team l...' |
+| 2026-11-01T11:18:04.085639 | LOW | **OBSERVED** | `EVID-103` | Visual artifact/screenshot recorded (`EVID-103`) |
+| 2026-11-01T11:18:04.085639 | LOW | **INFERRED** | `INFERRED-MAS-01` | Inferred Incident Trajectory: span of 1200.0s between initiation and final logged event. |
 
 ## 4. Explainability & Model Attribution
 ### Top Attributing Multimodal Features to Risk Prediction:
-- **cnn_score**: attribution weight = `0.3506`
-- **bilstm_score**: attribution weight = `0.2220`
-- **url_score**: attribution weight = `0.1738`
-- **keyword_score**: attribution weight = `0.1247`
-- **email_anomaly**: attribution weight = `0.0660`
-- **attachment_score**: attribution weight = `0.0629`
+- **bilstm_score**: attribution weight = `0.9994`
+- **cnn_score**: attribution weight = `0.0006`
+- **url_score**: attribution weight = `0.0000`
+- **keyword_score**: attribution weight = `0.0000`
+- **attachment_score**: attribution weight = `0.0000`
 - **timeline_anomaly**: attribution weight = `0.0000`
+- **email_anomaly**: attribution weight = `0.0000`
 
 ### Salient Linguistic & Keyword Tokens (BiLSTM Attention):
-- Token `'your'`: attention score = `0.0152`
-- Token `'now'`: attention score = `0.0152`
-- Token `'right'`: attention score = `0.0151`
-- Token `'phone'`: attention score = `0.0151`
-- Token `'to'`: attention score = `0.0149`
-- Token `'mobile'`: attention score = `0.0149`
-- Token `'attached'`: attention score = `0.0148`
-- Token `'vendor'`: attention score = `0.0145`
-- Token `'verify'`: attention score = `0.0145`
-- Token `'account'`: attention score = `0.0145`
+- Token `'project'`: attention score = `0.0250`
+- Token `'are'`: attention score = `0.0250`
+- Token `'we'`: attention score = `0.0193`
+- Token `'deployment'`: attention score = `0.0189`
+- Token `'still'`: attention score = `0.0162`
+- Token `'went'`: attention score = `0.0159`
+- Token `'on'`: attention score = `0.0145`
+- Token `'smoothly'`: attention score = `0.0143`
+- Token `'for'`: attention score = `0.0136`
+- Token `'all'`: attention score = `0.0134`
 
 ## 5. Model Limitations, Uncertainty & Academic Scope
 - Neural network predictions are probabilistic estimates conditioned on training corpus distribution.

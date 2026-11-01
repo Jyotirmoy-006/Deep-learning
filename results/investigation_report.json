@@ -1,113 +1,106 @@
 {
-  "case_id": "CASE-FS-2026-SUSP",
-  "title": "Suspected CEO Impersonation & Wire Fraud Breach",
+  "case_id": "CASE-FS-2026-BENIGN",
+  "title": "Routine IT Maintenance & Standup Audit",
   "investigator": "Lead Forensic Agent",
-  "timestamp_generated": "2026-11-01T11:23:34.749873",
+  "timestamp_generated": "2026-11-01T11:58:05.252761",
   "evidence_inventory": [
     {
       "item_index": 0,
-      "evidence_id": "EVID-001",
+      "evidence_id": "EVID-101",
       "evidence_type": "email",
-      "timestamp": "2026-11-01T10:38:30.928524",
+      "timestamp": "2026-11-01T10:58:04.085639",
       "is_observed": true,
-      "summary": "{'sender': 'ceo-desk@free-secure-mail.xyz', 'display_name': 'Chief Executive Off..."
+      "summary": "{'sender': 'lead-dev@company.internal', 'display_name': 'Dev Team Lead', 'reply_..."
     },
     {
       "item_index": 1,
-      "evidence_id": "EVID-002",
+      "evidence_id": "EVID-102",
       "evidence_type": "chat",
-      "timestamp": "2026-11-01T10:45:30.928524",
+      "timestamp": "2026-11-01T11:08:04.085639",
       "is_observed": true,
-      "summary": "Please send the one-time password (OTP) sent to your mobile phone right now to v..."
+      "summary": "Are we still on for the 2 PM sprint planning meeting? Team lunch is scheduled fo..."
     },
     {
       "item_index": 2,
-      "evidence_id": "EVID-003",
+      "evidence_id": "EVID-103",
       "evidence_type": "image",
-      "timestamp": "2026-11-01T10:53:30.928524",
+      "timestamp": "2026-11-01T11:18:04.085639",
       "is_observed": true,
-      "summary": "<PIL.Image.Image image mode=RGB size=128x128 at 0x1D675EDA690>"
+      "summary": "<PIL.Image.Image image mode=RGB size=128x128 at 0x1157ADBDD50>"
     }
   ],
   "model_predictions": {
-    "cnn_score": 1.0,
-    "bilstm_score": 0.9999842047691345,
-    "url_score": 1.0,
-    "keyword_score": 1.0,
-    "attachment_score": 1.0,
+    "cnn_score": 1.6193136787023832e-07,
+    "bilstm_score": 0.00017216685955645517,
+    "url_score": 0.0,
+    "keyword_score": 0.0,
+    "attachment_score": 0.0,
     "timeline_anomaly": 0.0,
-    "email_anomaly": 0.6
+    "email_anomaly": 0.0
   },
   "feature_vector_7d": [
-    1.0,
-    0.9999842047691345,
-    1.0,
-    1.0,
-    1.0,
+    1.6193136787023832e-07,
+    0.00017216685955645517,
     0.0,
-    0.6
+    0.0,
+    0.0,
+    0.0,
+    0.0
   ],
-  "overall_risk_score": 0.99989914894104,
-  "risk_tier": "HIGH",
+  "overall_risk_score": 0.00016745447646826506,
+  "risk_tier": "LOW",
   "chronological_timeline": [
     {
-      "timestamp": "2026-11-01T10:38:30.928524",
-      "description": "Email event logged: Subject 'URGENT: Immediate Confidential Wire Transfer Required'",
-      "source_evidence_id": "EVID-001",
+      "timestamp": "2026-11-01T10:58:04.085639",
+      "description": "Email event logged: Subject 'Project deployment went smoothly'",
+      "source_evidence_id": "EVID-101",
       "event_type": "observed",
-      "risk_level": "high",
+      "risk_level": "medium",
       "details": {
         "evidence_type": "email"
       }
     },
     {
-      "timestamp": "2026-11-01T10:45:30.928524",
-      "description": "Chat communication recorded: 'Please send the one-time password (OTP) sent to your mobile ...'",
-      "source_evidence_id": "EVID-002",
+      "timestamp": "2026-11-01T11:08:04.085639",
+      "description": "Chat communication recorded: 'Are we still on for the 2 PM sprint planning meeting? Team l...'",
+      "source_evidence_id": "EVID-102",
       "event_type": "observed",
-      "risk_level": "high",
+      "risk_level": "low",
       "details": {
         "evidence_type": "chat"
       }
     },
     {
-      "timestamp": "2026-11-01T10:53:30.928524",
-      "description": "Visual artifact/screenshot recorded (`EVID-003`)",
-      "source_evidence_id": "EVID-003",
+      "timestamp": "2026-11-01T11:18:04.085639",
+      "description": "Visual artifact/screenshot recorded (`EVID-103`)",
+      "source_evidence_id": "EVID-103",
       "event_type": "observed",
-      "risk_level": "high",
+      "risk_level": "low",
       "details": {
         "evidence_type": "image"
       }
     },
     {
-      "timestamp": "2026-11-01T10:53:30.928524",
-      "description": "Inferred Incident Trajectory: span of 900.0s between initiation and final logged event.",
+      "timestamp": "2026-11-01T11:18:04.085639",
+      "description": "Inferred Incident Trajectory: span of 1200.0s between initiation and final logged event.",
       "source_evidence_id": "INFERRED-MAS-01",
       "event_type": "inferred",
-      "risk_level": "high",
+      "risk_level": "low",
       "details": {}
     }
   ],
-  "key_evidence_indicators": [
-    "Urgency & Suspicious Language Pattern (BiLSTM)",
-    "Credential / OTP / Wire Request Keywords Detected",
-    "Suspicious URL / Phishing Domain Target",
-    "Visual Tampering / Suspicious Image Artifacts (CNN)",
-    "High-Risk Attachment File Extension",
-    "Email Header / SPF / Display Spoofing Discrepancy"
-  ],
+  "key_evidence_indicators": [],
   "feature_attributions": {
-    "cnn_score": 0.35060322284698486,
-    "bilstm_score": 0.2219512015581131,
-    "url_score": 0.17382988333702087,
-    "keyword_score": 0.1247258335351944,
-    "attachment_score": 0.06292577087879181,
+    "cnn_score": 0.0005958217079751194,
+    "bilstm_score": 0.9994041919708252,
+    "url_score": 0.0,
+    "keyword_score": 0.0,
+    "attachment_score": 0.0,
     "timeline_anomaly": 0.0,
-    "email_anomaly": 0.0659642219543457
+    "email_anomaly": 0.0
   },
   "visual_explainability": {
-    "EVID-003": {
+    "EVID-103": {
       "max_activation": 0.0,
       "mean_activation": 0.0,
       "salient_patch_detected": false
@@ -115,136 +108,144 @@
   },
   "textual_explainability": [
     [
-      "your",
-      0.015217832289636135
+      "project",
+      0.02503313682973385
     ],
     [
-      "now",
-      0.015154081396758556
+      "are",
+      0.02498486451804638
     ],
     [
-      "right",
-      0.015145210549235344
+      "we",
+      0.019251352176070213
     ],
     [
-      "phone",
-      0.015051129274070263
+      "deployment",
+      0.018919169902801514
     ],
     [
-      "to",
-      0.01493550930172205
+      "still",
+      0.01620727777481079
     ],
     [
-      "mobile",
-      0.014926638454198837
+      "went",
+      0.015863170847296715
     ],
     [
-      "attached",
-      0.014801636338233948
+      "on",
+      0.014512068592011929
     ],
     [
-      "vendor",
-      0.014512516558170319
+      "smoothly",
+      0.014261472970247269
     ],
     [
-      "verify",
-      0.014512069523334503
+      "for",
+      0.013563022948801517
     ],
     [
-      "account",
-      0.014475921168923378
+      "all",
+      0.01338514406234026
     ],
     [
       "the",
-      0.014386162161827087
+      0.012834773398935795
     ],
     [
-      "000",
-      0.014139143750071526
+      "unit",
+      0.01280716247856617
     ],
     [
-      "5",
-      0.014110397547483444
+      "tests",
+      0.01246881764382124
     ],
     [
-      "wire",
-      0.014053486287593842
+      "2",
+      0.012447568587958813
+    ],
+    [
+      "passed",
+      0.012230678461492062
     ],
     [
       "pm",
-      0.014008436352014542
+      0.012159216217696667
     ],
     [
-      "sent",
-      0.013998022302985191
+      "in",
+      0.012086610309779644
     ],
     [
-      "before",
-      0.013996490277349949
+      "sprint",
+      0.012052948586642742
     ],
     [
-      "avoid",
-      0.013662656769156456
+      "planning",
+      0.011934979818761349
     ],
     [
-      "transfer",
-      0.013540534302592278
+      "ci",
+      0.011895494535565376
     ],
     [
-      "penalty",
-      0.013501164503395557
+      "meeting",
+      0.011864030733704567
     ],
     [
-      "fees",
-      0.01339234784245491
+      "cd",
+      0.011824664659798145
     ],
     [
-      "otp",
-      0.013373496942222118
+      "team",
+      0.011808243580162525
     ],
     [
-      "send",
-      0.01328448485583067
+      "quarterly",
+      0.011730873957276344
     ],
     [
-      "45",
-      0.013257401064038277
+      "is",
+      0.011730779893696308
     ],
     [
-      "immediately",
-      0.013173287734389305
+      "lunch",
+      0.011715440079569817
     ],
     [
-      "compliance",
-      0.013116552494466305
+      "review",
+      0.011714654974639416
     ],
     [
-      "password",
-      0.011459296569228172
+      "scheduled",
+      0.011647709645330906
     ],
     [
-      "time",
-      0.009210881777107716
+      "presentation",
+      0.011643294245004654
     ],
     [
-      "one",
-      0.006802754942327738
+      "slides",
+      0.011633310467004776
     ],
     [
-      "required",
-      0.00565013661980629
+      "noon",
+      0.011618576012551785
     ],
     [
-      "action",
-      0.00290381140075624
+      "ready",
+      0.011587029322981834
     ],
     [
-      "immediate",
-      0.001495738630183041
+      "cafeteria",
+      0.011548062786459923
     ],
     [
-      "please",
-      0.0014272760599851608
+      "friday",
+      0.011541700921952724
+    ],
+    [
+      "at",
+      0.011533633805811405
     ]
   ],
   "limitations_and_uncertainty": [

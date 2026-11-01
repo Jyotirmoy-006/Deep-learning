@@ -1,10 +1,11 @@
 """
-ForenSightX - Forensic Data Loader & Preprocessing Pipeline
+ForenSightX - Forensic Data Loader & Preprocessing Pipeline (Iteration 2 Enhanced)
 Authoritative Reference: ForenSightX_Project_Architecture.docx
-Handles multimodal evidence ingestion, NLP tokenization, image normalization,
-metadata extraction, and PyTorch dataset creation.
+Handles multimodal evidence ingestion, NLP tokenization, percentile-driven max_len,
+OOV diagnostics, heuristic feature extractors, and PyTorch dataset creation.
 """
 
+import hashlib
 import os
 import re
 import random
@@ -16,6 +17,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import torch
 from torch.utils.data import Dataset, DataLoader
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SMOKE_BANNER = "SYNTHETIC SMOKE RUN - NOT A RESULT"
 
 
 # =====================================================================
@@ -45,6 +49,34 @@ class ForensicCase:
 # NLP Tokenizer & Preprocessor
 # =====================================================================
 
+def derive_max_len(texts: List[str], percentile: float = 95.0) -> int:
+    """
+    Derives max_len from the training corpus token-length distribution.
+    Logs the computed percentile value per Part 6 requirement.
+    """
+    lengths = [len(re.sub(r"[^\w\s]", " ", t.lower()).split()) for t in texts]
+    if not lengths:
+        return 80
+    derived = int(np.percentile(lengths, percentile))
+    derived = max(10, min(256, derived))
+    return derived
+
+
+def calculate_oov_rate(texts: List[str], tokenizer: "ForensicTokenizer") -> float:
+    """Calculates Out-Of-Vocabulary (OOV) token rate for a given corpus partition."""
+    total_tokens = 0
+    oov_tokens = 0
+    for text in texts:
+        tokens = tokenizer.tokenize(text)
+        for t in tokens:
+            total_tokens += 1
+            if t not in tokenizer.word2idx:
+                oov_tokens += 1
+    if total_tokens == 0:
+        return 0.0
+    return float(oov_tokens / total_tokens)
+
+
 class ForensicTokenizer:
     """
     Tokenizer for forensic chat logs and email bodies.
@@ -54,7 +86,7 @@ class ForensicTokenizer:
     PAD_TOKEN = "<PAD>"
     UNK_TOKEN = "<UNK>"
 
-    def __init__(self, max_length: int = 100):
+    def __init__(self, max_length: int = 80):
         self.max_length = max_length
         self.word2idx: Dict[str, int] = {self.PAD_TOKEN: 0, self.UNK_TOKEN: 1}
         self.idx2word: Dict[int, str] = {0: self.PAD_TOKEN, 1: self.UNK_TOKEN}
@@ -90,7 +122,6 @@ class ForensicTokenizer:
             self.word2idx.get(t, self.word2idx[self.UNK_TOKEN]) for t in padded_tokens
         ]
 
-        # Pad to max_length
         if len(token_ids) < self.max_length:
             pad_count = self.max_length - len(token_ids)
             token_ids += [self.word2idx[self.PAD_TOKEN]] * pad_count
@@ -105,6 +136,7 @@ class ForensicTokenizer:
 
 # =====================================================================
 # Evidence Feature Extractors (Heuristic & Metadata)
+# Formulas strictly documented in docs/FEATURES.md
 # =====================================================================
 
 SUSPICIOUS_KEYWORDS = {
@@ -145,7 +177,7 @@ SUSPICIOUS_EXTENSIONS = {
 
 
 def extract_keyword_score(text: str) -> float:
-    """Computes normalized keyword suspicion score based on forensic indicators."""
+    """Computes normalized keyword suspicion score per docs/FEATURES.md."""
     lower = text.lower()
     total_score = 0.0
     matches = 0
@@ -159,7 +191,7 @@ def extract_keyword_score(text: str) -> float:
 
 
 def extract_url_score(text_or_urls: Union[str, List[str]]) -> float:
-    """Computes suspicion score for embedded URLs."""
+    """Computes suspicion score for embedded URLs per docs/FEATURES.md."""
     if isinstance(text_or_urls, str):
         urls = re.findall(r"https?://\S+|www\.\S+", text_or_urls)
     else:
@@ -171,7 +203,7 @@ def extract_url_score(text_or_urls: Union[str, List[str]]) -> float:
     score = 0.0
     for u in urls:
         u_lower = u.lower()
-        if re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", u_lower):  # Raw IP URL
+        if re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", u_lower):  # IPv4 literal
             score += 0.8
         if any(tld in u_lower for tld in [".xyz", ".top", ".tk", ".ru", ".buzz", ".work"]):
             score += 0.6
@@ -185,14 +217,13 @@ def extract_url_score(text_or_urls: Union[str, List[str]]) -> float:
 
 
 def extract_attachment_score(attachments: List[str]) -> float:
-    """Analyzes attachment extensions and file characteristics."""
+    """Analyzes attachment extensions per docs/FEATURES.md."""
     if not attachments:
         return 0.0
     max_score = 0.0
     for att in attachments:
         att_lower = att.lower()
-        # Check double extensions like invoice.pdf.exe
-        if len(re.findall(r"\.\w+", att_lower)) > 1:
+        if len(re.findall(r"\.\w+", att_lower)) > 1:  # Double extension
             max_score = max(max_score, 0.95)
         for ext, weight in SUSPICIOUS_EXTENSIONS.items():
             if att_lower.endswith(ext):
@@ -201,31 +232,25 @@ def extract_attachment_score(attachments: List[str]) -> float:
 
 
 def extract_email_anomaly(email_dict: Dict[str, Any]) -> float:
-    """
-    Analyzes email header discrepancies (e.g. sender display vs actual address,
-    reply-to mismatch, missing security verification).
-    """
+    """Analyzes email header discrepancies per docs/FEATURES.md."""
     anomaly = 0.0
     sender = email_dict.get("sender", "")
     reply_to = email_dict.get("reply_to", "")
     headers = email_dict.get("headers", {})
 
-    # Sender domain mismatch with reply-to
     if reply_to and sender:
         sender_domain = sender.split("@")[-1].lower() if "@" in sender else ""
         reply_domain = reply_to.split("@")[-1].lower() if "@" in reply_to else ""
         if sender_domain and reply_domain and sender_domain != reply_domain:
             anomaly += 0.6
 
-    # SPF / DKIM verification status if present
     if headers.get("spf", "").lower() == "fail":
         anomaly += 0.5
     if headers.get("dkim", "").lower() == "fail":
         anomaly += 0.5
 
-    # Display name spoofing (e.g. "CEO" <attacker@free.mail>)
     display_name = email_dict.get("display_name", "").lower()
-    if any(title in display_name for title in ["ceo", "admin", "it support", "security"]):
+    if any(title in display_name for title in ["ceo", "chief executive", "admin", "it support", "security"]):
         if any(free in sender.lower() for free in ["gmail", "yahoo", "hotmail", "proton"]):
             anomaly += 0.7
 
@@ -233,10 +258,7 @@ def extract_email_anomaly(email_dict: Dict[str, Any]) -> float:
 
 
 def extract_timeline_anomaly(timestamps: List[datetime]) -> float:
-    """
-    Computes anomaly score in event timing (e.g. rapid automated burst,
-    unusual off-hours clustering, or broken sequence progression).
-    """
+    """Computes anomaly score in event timing per docs/FEATURES.md."""
     if len(timestamps) < 2:
         return 0.0
 
@@ -246,12 +268,10 @@ def extract_timeline_anomaly(timestamps: List[datetime]) -> float:
     ]
 
     anomaly = 0.0
-    # Ultra-rapid burst (< 2 seconds between multiple distinct actions)
     rapid_events = sum(1 for d in deltas_seconds if 0 <= d < 3.0)
     if rapid_events >= 2:
         anomaly += 0.5 + (0.1 * rapid_events)
 
-    # Significant backward timestamp anomaly (clock skew or spoofing)
     for t1, t2 in zip(timestamps[:-1], timestamps[1:]):
         if (t2 - t1).total_seconds() < 0:
             anomaly += 0.8
@@ -260,7 +280,7 @@ def extract_timeline_anomaly(timestamps: List[datetime]) -> float:
 
 
 # =====================================================================
-# Synthetic Forensic Corpus & Dataset Generator
+# Synthetic Forensic Corpus & Dataset Generator (RESTRICTED TO TESTS/SMOKE)
 # =====================================================================
 
 BENIGN_TEXTS = [
@@ -302,65 +322,36 @@ SUSPICIOUS_TEXTS = [
 
 class ForensicDatasetGenerator:
     """
-    Generates controlled forensic datasets for experiments A, B, C, D, E.
-    Ensures reproducibility and zero hardcoded illustrative values.
+    Controlled generator restricted to test harnesses and SMOKE mode.
+    Outputs the SMOKE banner on instantiation.
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42, is_smoke_mode: bool = True):
         self.seed = seed
+        self.is_smoke_mode = is_smoke_mode
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-
-    def generate_text_data(
-        self, num_samples: int = 300
-    ) -> Tuple[List[str], List[int]]:
-        """Generates synthetic chat and email text samples with binary labels."""
-        texts = []
-        labels = []
-        num_per_class = num_samples // 2
-
-        for _ in range(num_per_class):
-            template = random.choice(BENIGN_TEXTS)
-            texts.append(template)
-            labels.append(0)
-
-        for _ in range(num_per_class):
-            template = random.choice(SUSPICIOUS_TEXTS)
-            texts.append(template)
-            labels.append(1)
-
-        combined = list(zip(texts, labels))
-        random.shuffle(combined)
-        texts, labels = zip(*combined)
-        return list(texts), list(labels)
+        if self.is_smoke_mode:
+            print(f"[{SMOKE_BANNER}] Initializing ForensicDatasetGenerator for controlled benchmark run.")
 
     def generate_image_sample(
         self, is_suspicious: bool, size: Tuple[int, int] = (128, 128)
     ) -> Image.Image:
-        """
-        Synthesizes a realistic digital forensic screenshot/document image:
-        - Benign: Regular document / clean window structure with neutral colors.
-        - Suspicious: Tampered noise patterns, alert banners, fake login input fields.
-        """
         img = Image.new("RGB", size, color=(245, 247, 250))
         draw = ImageDraw.Draw(img)
 
         if not is_suspicious:
-            # Benign document header and clean paragraph lines
             draw.rectangle([10, 10, size[0] - 10, 25], fill=(70, 130, 180))
             for y in range(35, size[1] - 15, 12):
                 w = random.randint(60, size[0] - 20)
                 draw.rectangle([10, y, w, y + 4], fill=(180, 190, 200))
         else:
-            # Suspicious alert banner (red/crimson) + fake credential box + visual tampering artifacts
             draw.rectangle([10, 10, size[0] - 10, 30], fill=(210, 45, 45))
             draw.text((15, 12), "ALERT", fill=(255, 255, 255))
-            # Fake login dialog
             draw.rectangle([20, 45, size[0] - 20, 85], outline=(150, 0, 0), fill=(255, 230, 230))
             draw.rectangle([30, 55, size[0] - 30, 65], fill=(255, 255, 255), outline=(100, 100, 100))
             draw.rectangle([30, 70, size[0] - 30, 80], fill=(255, 255, 255), outline=(100, 100, 100))
-            # Visual noise / splice artifacts
             arr = np.array(img)
             noise = np.random.randint(0, 60, arr.shape, dtype=np.uint8)
             arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
@@ -370,16 +361,7 @@ class ForensicDatasetGenerator:
 
     def generate_multimodal_dataset(
         self, num_samples: int = 400
-    ) -> Tuple[
-        List[str],           # texts
-        List[Image.Image],   # images
-        np.ndarray,          # 7D feature vectors
-        np.ndarray           # binary ground truth labels
-    ]:
-        """
-        Generates paired multimodal forensic samples adhering to the 7-D feature spec:
-        [cnn_score, bilstm_score, url_score, keyword_score, attachment_score, timeline_anomaly, email_anomaly]
-        """
+    ) -> Tuple[List[str], List[Image.Image], np.ndarray, np.ndarray]:
         texts: List[str] = []
         images: List[Image.Image] = []
         features_list: List[List[float]] = []
@@ -460,7 +442,7 @@ class TextEvidenceDataset(Dataset):
 
 
 class ImageEvidenceDataset(Dataset):
-    def __init__(self, images: List[Image.Image], labels: List[int]):
+    def __init__(self, images: List[Union[Image.Image, str]], labels: List[int]):
         self.images = images
         self.labels = labels
 
@@ -469,8 +451,12 @@ class ImageEvidenceDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img = self.images[idx]
-        arr = np.array(img, dtype=np.float32) / 255.0  # Normalize to [0, 1]
-        tensor = torch.tensor(arr).permute(2, 0, 1)    # (3, H, W)
+        if isinstance(img, str):
+            img = Image.open(img).convert("RGB").resize((128, 128))
+        elif isinstance(img, Image.Image):
+            img = img.resize((128, 128))
+        arr = np.array(img, dtype=np.float32) / 255.0
+        tensor = torch.tensor(arr).permute(2, 0, 1)
         label = torch.tensor(self.labels[idx], dtype=torch.float32).unsqueeze(0)
         return tensor, label
 
@@ -485,4 +471,3 @@ class MultimodalFeatureDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.features[idx], self.labels[idx]
-

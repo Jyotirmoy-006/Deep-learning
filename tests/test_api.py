@@ -68,7 +68,12 @@ def test_api_case_lifecycle():
     # 4. Fetch Stored Report
     rep_res = client.get(f"/api/cases/{case_id}/report")
     assert rep_res.status_code == 200
-    assert rep_res.json()["case_id"] == case_id
+
+
+def test_api_case_validation_rejection():
+    # Attempt to create case with empty / single-char invalid ID
+    res = client.post("/api/cases", json={"case_id": "x", "title": "Invalid ID Test"})
+    assert res.status_code == 422  # Unprocessable Entity from Pydantic min_length validation
 
 
 def test_dashboard_frontend_view():

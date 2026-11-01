@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import torch
 from PIL import Image
 
@@ -134,8 +134,8 @@ coordinator = CaseCoordinatorAgent(
 # =====================================================================
 
 class CreateCaseRequest(BaseModel):
-    case_id: str
-    title: str
+    case_id: str = Field(..., min_length=2, max_length=64, description="Unique case identifier")
+    title: str = Field(..., min_length=1, max_length=256, description="Case title")
     investigator: Optional[str] = "Forensic Examiner"
 
 class AddEvidenceRequest(BaseModel):
@@ -275,6 +275,14 @@ def run_case_investigation(case_id: str):
         evidence_items=evidence_items,
         investigator=case_row["investigator"],
     )
+
+    # Assert eval mode across all models before running inference (Part 7 BN regression requirement)
+    cnn_model.eval()
+    bilstm_model.eval()
+    ann_model.eval()
+    assert not cnn_model.training, "CNN must be in eval mode during API inference"
+    assert not bilstm_model.training, "BiLSTM must be in eval mode during API inference"
+    assert not ann_model.training, "ANN must be in eval mode during API inference"
 
     # Execute Multi-Agent Investigation
     report = coordinator.investigate(forensic_case)

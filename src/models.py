@@ -1,23 +1,26 @@
 """
-ForenSightX - Deep Learning Models Module
+ForenSightX - Deep Learning Models Module (Iteration 2 Enhanced)
 Authoritative Reference: ForenSightX_Project_Architecture.docx
 Course Mapping: Neural Network & Deep Learning (PCCCS587)
 
-Modules Implemented:
-- Module 1: ANN / Deep Feedforward Network (Multimodal Feature Fusion & Risk Classifier)
-- Module 2: Initialization (He, Xavier), Regularization (Dropout, BatchNorm), Optimizers (Adam, RMSProp, SGD)
-- Module 3: CNN (Visual Evidence Analyzer) with Grad-CAM Explainability
-- Module 4: BiLSTM (Conversation & Email Sequence Intelligence) with Token Attribution
-- Module 5: VAE (Variational Autoencoder) for Synthetic Data Augmentation
+Syllabus Modules:
+- Module 1: ANN / Deep Feedforward Network (7D Multimodal Feature Fusion)
+- Module 2: Optimization (Adam, RMSProp, SGD), Initialization (Xavier, He, Default), Regularization (Dropout, BatchNorm)
+- Module 3: Visual CNN with Grad-CAM Explainability & Shape Tracing
+- Module 4: BiLSTM with Concat (Blueprint 5.2 default) and Attention Pooling options
+- Module 5: Class-Conditional VAE for Synthetic Feature Augmentation
 """
 
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+# Device selection utility
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =====================================================================
@@ -27,13 +30,13 @@ import torch.nn.functional as F
 def init_weights(model: nn.Module, method: str = "he_normal") -> nn.Module:
     """
     Initializes module parameters per NNDL Module 2 syllabus.
-    Supported methods:
-      - 'he_normal' (Kaiming normal)
-      - 'he_uniform' (Kaiming uniform)
-      - 'xavier_normal' (Glorot normal)
-      - 'xavier_uniform' (Glorot uniform)
+    Supported: 'he_normal', 'he_uniform', 'xavier_normal', 'xavier_uniform', 'default'
     """
     method = method.lower()
+    if method == "default":
+        # Framework default initialization (leave untouched)
+        return model
+
     for name, param in model.named_parameters():
         if "weight" in name and param.dim() >= 2:
             if method == "he_normal":
@@ -80,7 +83,7 @@ def get_optimizer(
 class VisualEvidenceCNN(nn.Module):
     """
     CNN architecture for visual forensic evidence (screenshots, manipulated images, documents).
-    Includes forward hooks for Grad-CAM explainability.
+    Includes per-layer shape tracing and Grad-CAM explainability.
     """
 
     def __init__(
@@ -88,34 +91,40 @@ class VisualEvidenceCNN(nn.Module):
         in_channels: int = 3,
         num_classes: int = 1,
         dropout_rate: float = 0.3,
+        use_batchnorm: bool = True,
+        use_dropout: bool = True,
     ):
         super().__init__()
-        # Convolutional Block 1
+        self.use_batchnorm = use_batchnorm
+        self.use_dropout = use_dropout
+        self.dropout_rate = dropout_rate if use_dropout else 0.0
+
+        # Conv Block 1
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
+        self.bn1 = nn.BatchNorm2d(32) if use_batchnorm else nn.Identity()
 
-        # Convolutional Block 2
+        # Conv Block 2
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
+        self.bn2 = nn.BatchNorm2d(64) if use_batchnorm else nn.Identity()
 
-        # Convolutional Block 3 (Target layer for Grad-CAM)
+        # Conv Block 3 (Target layer for Grad-CAM)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
+        self.bn3 = nn.BatchNorm2d(128) if use_batchnorm else nn.Identity()
 
         self.pool = nn.MaxPool2d(2, 2)
         self.adaptive_pool = nn.AdaptiveAvgPool2d((4, 4))
 
-        # Dense Classifier
+        self.flatten = nn.Flatten()
+        dropout_layer = nn.Dropout(p=self.dropout_rate) if use_dropout else nn.Identity()
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(128 * 4 * 4, 128),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout_rate),
+            dropout_layer,
             nn.Linear(128, num_classes),
             nn.Sigmoid(),
         )
 
-        # Gradients and activations storage for Grad-CAM
         self.gradients: Optional[torch.Tensor] = None
         self.activations: Optional[torch.Tensor] = None
 
@@ -127,9 +136,10 @@ class VisualEvidenceCNN(nn.Module):
         # Conv block 3
         conv3_out = F.relu(self.bn3(self.conv3(x)))
 
-        if x.requires_grad:
+        if x.requires_grad or self.training:
             self.activations = conv3_out
-            conv3_out.register_hook(self._save_gradient)
+            if conv3_out.requires_grad:
+                conv3_out.register_hook(self._save_gradient)
 
         x = self.adaptive_pool(conv3_out)
         out = self.classifier(x)
@@ -138,16 +148,40 @@ class VisualEvidenceCNN(nn.Module):
     def _save_gradient(self, grad: torch.Tensor):
         self.gradients = grad
 
+    def trace_shapes(self, sample_input: torch.Tensor) -> List[Dict[str, Any]]:
+        """Produces per-layer shape trace for diagnostics."""
+        trace = []
+        x = sample_input.clone()
+        trace.append({"stage": "input", "shape": list(x.shape)})
+
+        c1 = self.conv1(x)
+        trace.append({"stage": "conv1", "shape": list(c1.shape)})
+        b1 = self.bn1(c1)
+        r1 = F.relu(b1)
+        p1 = self.pool(r1)
+        trace.append({"stage": "pool1", "shape": list(p1.shape)})
+
+        c2 = self.conv2(p1)
+        trace.append({"stage": "conv2", "shape": list(c2.shape)})
+        p2 = self.pool(F.relu(self.bn2(c2)))
+        trace.append({"stage": "pool2", "shape": list(p2.shape)})
+
+        c3 = self.conv3(p2)
+        trace.append({"stage": "conv3", "shape": list(c3.shape)})
+        ap = self.adaptive_pool(F.relu(self.bn3(c3)))
+        trace.append({"stage": "adaptive_pool", "shape": list(ap.shape)})
+
+        fl = self.flatten(ap)
+        trace.append({"stage": "flatten", "shape": list(fl.shape)})
+        out = self.classifier(ap)
+        trace.append({"stage": "output", "shape": list(out.shape)})
+        return trace
+
     def get_gradcam(
         self,
         input_tensor: torch.Tensor,
         target_size: Tuple[int, int] = (128, 128),
     ) -> np.ndarray:
-        """
-        Computes Grad-CAM saliency map for visual evidence explainability.
-        Returns:
-            np.ndarray of shape (H, W) with values normalized to [0, 1].
-        """
         self.eval()
         input_tensor = input_tensor.clone().detach().requires_grad_(True)
         prob = self.forward(input_tensor)
@@ -155,10 +189,8 @@ class VisualEvidenceCNN(nn.Module):
         prob.backward(retain_graph=True)
 
         if self.gradients is None or self.activations is None:
-            # Fallback uniform heatmap if gradients unavailable
             return np.zeros(target_size, dtype=np.float32)
 
-        # Global average pooling of gradients over spatial dimensions
         pooled_gradients = torch.mean(self.gradients, dim=[0, 2, 3])
         activations = self.activations[0]
 
@@ -172,8 +204,6 @@ class VisualEvidenceCNN(nn.Module):
             heatmap /= max_val
 
         heatmap_np = heatmap.numpy()
-
-        # Resize to target size via bilinear interpolation
         heatmap_tensor = torch.tensor(heatmap_np).unsqueeze(0).unsqueeze(0)
         resized = F.interpolate(
             heatmap_tensor, size=target_size, mode="bilinear", align_corners=False
@@ -188,8 +218,7 @@ class VisualEvidenceCNN(nn.Module):
 class ConversationBiLSTM(nn.Module):
     """
     Bidirectional LSTM for chat and email sequence analysis.
-    Captures bidirectional contextual signals to detect phishing, social engineering,
-    urgency tactics, and credential requests.
+    Supports pooling: 'concat' (Blueprint 5.2 default) and 'attention'.
     """
 
     def __init__(
@@ -199,11 +228,14 @@ class ConversationBiLSTM(nn.Module):
         hidden_dim: int = 64,
         num_layers: int = 2,
         dropout_rate: float = 0.25,
+        pooling: str = "concat",  # 'concat' (Blueprint 5.2 default) or 'attention'
     ):
         super().__init__()
         self.vocab_size = vocab_size
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        self.pooling = pooling.lower()
+        assert self.pooling in ["concat", "attention"], f"Unknown pooling: {self.pooling}"
 
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
         self.lstm = nn.LSTM(
@@ -215,7 +247,7 @@ class ConversationBiLSTM(nn.Module):
             dropout=dropout_rate if num_layers > 1 else 0.0,
         )
 
-        # Attention layer for token-level importance extraction
+        # Attention layer (used if pooling == 'attention' or for token importance)
         self.attention = nn.Linear(hidden_dim * 2, 1)
 
         self.fc = nn.Sequential(
@@ -230,32 +262,59 @@ class ConversationBiLSTM(nn.Module):
         self, x: torch.Tensor, return_attention: bool = False
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         # x: (batch_size, seq_len)
-        embedded = self.embedding(x)  # (batch_size, seq_len, embed_dim)
-        lstm_out, _ = self.lstm(embedded)  # (batch_size, seq_len, hidden_dim * 2)
+        embedded = self.embedding(x)
+        lstm_out, (h_n, _) = self.lstm(embedded)
 
         # Contextual attention weights
-        attn_scores = self.attention(lstm_out)  # (batch_size, seq_len, 1)
-        attn_weights = F.softmax(attn_scores, dim=1)  # (batch_size, seq_len, 1)
+        attn_scores = self.attention(lstm_out)
+        attn_weights = F.softmax(attn_scores, dim=1)
 
-        # Weighted context representation
-        context = torch.sum(lstm_out * attn_weights, dim=1)  # (batch_size, hidden_dim * 2)
+        if self.pooling == "concat":
+            # Blueprint 5.2 default: concatenate final forward and backward hidden states
+            # h_n shape: (num_layers * 2, batch_size, hidden_dim)
+            h_forward = h_n[-2, :, :]   # Top-layer forward hidden state
+            h_backward = h_n[-1, :, :]  # Top-layer backward hidden state
+            context = torch.cat([h_forward, h_backward], dim=1)  # (batch_size, hidden_dim * 2)
+        elif self.pooling == "attention":
+            context = torch.sum(lstm_out * attn_weights, dim=1)
+        else:
+            raise ValueError(f"Unsupported pooling: {self.pooling}")
 
-        out = self.fc(context)  # (batch_size, 1)
+        out = self.fc(context)
 
         if return_attention:
             return out, attn_weights.squeeze(-1)
         return out
 
+    def trace_shapes(self, sample_tokens: torch.Tensor) -> List[Dict[str, Any]]:
+        trace = []
+        trace.append({"stage": "input", "shape": list(sample_tokens.shape)})
+        emb = self.embedding(sample_tokens)
+        trace.append({"stage": "embedding", "shape": list(emb.shape)})
+        lstm_out, (h_n, c_n) = self.lstm(emb)
+        trace.append({"stage": "lstm_out", "shape": list(lstm_out.shape)})
+        trace.append({"stage": "lstm_h_n", "shape": list(h_n.shape)})
+
+        if self.pooling == "concat":
+            ctx = torch.cat([h_n[-2], h_n[-1]], dim=1)
+            trace.append({"stage": "context_concat", "shape": list(ctx.shape)})
+        else:
+            attn = F.softmax(self.attention(lstm_out), dim=1)
+            ctx = torch.sum(lstm_out * attn, dim=1)
+            trace.append({"stage": "context_attention", "shape": list(ctx.shape)})
+
+        out = self.fc(ctx)
+        trace.append({"stage": "output", "shape": list(out.shape)})
+        return trace
+
     def get_token_importance(
         self, tokens: List[str], token_ids: torch.Tensor
     ) -> List[Tuple[str, float]]:
-        """
-        Extracts explainable token importance scores using the attention mechanism.
-        """
         self.eval()
         with torch.no_grad():
             if token_ids.dim() == 1:
                 token_ids = token_ids.unsqueeze(0)
+            token_ids = token_ids.to(next(self.parameters()).device)
             _, attn_weights = self.forward(token_ids, return_attention=True)
             weights = attn_weights[0].cpu().numpy()
 
@@ -272,19 +331,9 @@ class ConversationBiLSTM(nn.Module):
 
 class ANNMultimodalRiskClassifier(nn.Module):
     """
-    ANN / Deep Feedforward Network for multimodal feature fusion.
+    ANN / Deep Feedforward Network for 7D Multimodal Feature Fusion.
     Authoritative Spec Reference: Section 5.3 of ForenSightX_Project_Architecture.docx
-    Input Feature Vector (7 dimensions):
-      [0]: cnn_score (Visual suspicion probability)
-      [1]: bilstm_score (Text conversation suspicion probability)
-      [2]: url_score (Suspicious URL indicator score)
-      [3]: keyword_score (Suspicious forensic keyword frequency/weight)
-      [4]: attachment_score (Anomalous attachment indicator)
-      [5]: timeline_anomaly (Timestamp/sequence anomaly score)
-      [6]: email_anomaly (Email header/domain/structure anomaly score)
-
-    Output:
-      Overall risk probability in [0, 1].
+    Supports Module 2 options: Dropout (on/off), BatchNorm (on/off).
     """
 
     FEATURE_NAMES = [
@@ -303,18 +352,24 @@ class ANNMultimodalRiskClassifier(nn.Module):
         hidden_dim1: int = 32,
         hidden_dim2: int = 16,
         dropout_rate: float = 0.2,
+        use_batchnorm: bool = True,
+        use_dropout: bool = True,
     ):
         super().__init__()
         self.input_dim = input_dim
+        self.use_batchnorm = use_batchnorm
+        self.use_dropout = use_dropout
+        self.dropout_rate = dropout_rate if use_dropout else 0.0
+
         self.fc1 = nn.Linear(input_dim, hidden_dim1)
-        self.bn1 = nn.BatchNorm1d(hidden_dim1)
+        self.bn1 = nn.BatchNorm1d(hidden_dim1) if use_batchnorm else nn.Identity()
         self.relu1 = nn.ReLU()
-        self.drop1 = nn.Dropout(p=dropout_rate)
+        self.drop1 = nn.Dropout(p=self.dropout_rate) if use_dropout else nn.Identity()
 
         self.fc2 = nn.Linear(hidden_dim1, hidden_dim2)
-        self.bn2 = nn.BatchNorm1d(hidden_dim2)
+        self.bn2 = nn.BatchNorm1d(hidden_dim2) if use_batchnorm else nn.Identity()
         self.relu2 = nn.ReLU()
-        self.drop2 = nn.Dropout(p=dropout_rate)
+        self.drop2 = nn.Dropout(p=self.dropout_rate) if use_dropout else nn.Identity()
 
         self.out = nn.Linear(hidden_dim2, 1)
         self.sigmoid = nn.Sigmoid()
@@ -323,10 +378,8 @@ class ANNMultimodalRiskClassifier(nn.Module):
         if x.dim() == 1:
             x = x.unsqueeze(0)
 
-        # Standard forward pass with BatchNorm
-        # In eval mode, BatchNorm uses running_mean and running_var
-        # In train mode, BatchNorm requires batch size > 1
-        if self.training and x.size(0) == 1:
+        # In train mode, BatchNorm requires batch size > 1; fallback to identity if batch size is 1
+        if self.use_batchnorm and self.training and x.size(0) == 1:
             h1 = self.drop1(self.relu1(self.fc1(x)))
             h2 = self.drop2(self.relu2(self.fc2(h1)))
         else:
@@ -335,17 +388,43 @@ class ANNMultimodalRiskClassifier(nn.Module):
 
         return self.sigmoid(self.out(h2))
 
+    def trace_shapes(self, sample_input: torch.Tensor) -> List[Dict[str, Any]]:
+        was_training = self.training
+        self.eval()
+        trace = []
+        if sample_input.dim() == 1:
+            sample_input = sample_input.unsqueeze(0)
+        trace.append({"stage": "input", "shape": list(sample_input.shape)})
+
+        h1 = self.fc1(sample_input)
+        trace.append({"stage": "fc1", "shape": list(h1.shape)})
+        if self.use_batchnorm:
+            h1 = self.bn1(h1)
+            trace.append({"stage": "bn1", "shape": list(h1.shape)})
+        h1 = self.drop1(self.relu1(h1))
+
+        h2 = self.fc2(h1)
+        trace.append({"stage": "fc2", "shape": list(h2.shape)})
+        if self.use_batchnorm:
+            h2 = self.bn2(h2)
+            trace.append({"stage": "bn2", "shape": list(h2.shape)})
+        h2 = self.drop2(self.relu2(h2))
+
+        out = self.sigmoid(self.out(h2))
+        trace.append({"stage": "output", "shape": list(out.shape)})
+        if was_training:
+            self.train()
+        return trace
+
     def explain_features(self, feature_vector: torch.Tensor) -> Dict[str, float]:
-        """
-        Calculates feature attributions for explainability using integrated gradients / input x weight.
-        """
         self.eval()
         if feature_vector.dim() == 1:
             x = feature_vector.unsqueeze(0)
         else:
             x = feature_vector
 
-        x = x.clone().detach().requires_grad_(True)
+        device = next(self.parameters()).device
+        x = x.clone().detach().to(device).requires_grad_(True)
         output = self.forward(x)
         self.zero_grad()
         output.backward(torch.ones_like(output))
@@ -370,29 +449,31 @@ class ANNMultimodalRiskClassifier(nn.Module):
 
 
 # =====================================================================
-# Module 5: VAE - Synthetic Data Augmentation
+# Module 5: VAE - Class-Conditional Synthetic Data Augmentation
 # =====================================================================
 
 class SyntheticDataVAE(nn.Module):
     """
-    Variational Autoencoder (VAE) for controlled synthetic multimodal evidence augmentation.
-    Learns latent distribution over forensic feature vectors and samples realistic synthetic
-    evidence vectors to evaluate model robustness when forensic data are scarce.
+    Class-conditional Variational Autoencoder (CVAE) for forensic feature augmentation.
+    Trained strictly on the TRAIN split only. Conditioned on binary class label y in {0, 1}.
     """
 
     def __init__(
         self,
         input_dim: int = 7,
+        num_classes: int = 2,
         hidden_dim: int = 24,
         latent_dim: int = 4,
     ):
         super().__init__()
         self.input_dim = input_dim
+        self.num_classes = num_classes
         self.latent_dim = latent_dim
 
-        # Encoder
+        # Encoder receives feature vector + one-hot class condition
+        enc_in = input_dim + num_classes
         self.encoder_fc = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+            nn.Linear(enc_in, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
@@ -400,36 +481,45 @@ class SyntheticDataVAE(nn.Module):
         self.fc_mu = nn.Linear(hidden_dim // 2, latent_dim)
         self.fc_logvar = nn.Linear(hidden_dim // 2, latent_dim)
 
-        # Decoder
+        # Decoder receives latent vector z + one-hot class condition
+        dec_in = latent_dim + num_classes
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, hidden_dim // 2),
+            nn.Linear(dec_in, hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(hidden_dim // 2, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, input_dim),
-            nn.Sigmoid(),  # Bounds synthetic features to normalized range [0, 1]
+            nn.Sigmoid(),
         )
 
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        h = self.encoder_fc(x)
-        mu = self.fc_mu(h)
-        logvar = self.fc_logvar(h)
-        return mu, logvar
+    def encode(self, x: torch.Tensor, y: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        if y is None:
+            y = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+        y_onehot = F.one_hot(y.long(), num_classes=self.num_classes).float()
+        enc_input = torch.cat([x, y_onehot], dim=1)
+        h = self.encoder_fc(enc_input)
+        return self.fc_mu(h), self.fc_logvar(h)
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
 
-    def decode(self, z: torch.Tensor) -> torch.Tensor:
-        return self.decoder(z)
+    def decode(self, z: torch.Tensor, y: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if y is None:
+            y = torch.zeros(z.size(0), dtype=torch.long, device=z.device)
+        y_onehot = F.one_hot(y.long(), num_classes=self.num_classes).float()
+        dec_input = torch.cat([z, y_onehot], dim=1)
+        return self.decoder(dec_input)
 
     def forward(
-        self, x: torch.Tensor
+        self, x: torch.Tensor, y: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        mu, logvar = self.encode(x)
+        if y is None:
+            y = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+        mu, logvar = self.encode(x, y)
         z = self.reparameterize(mu, logvar)
-        recon_x = self.decode(z)
+        recon_x = self.decode(z, y)
         return recon_x, mu, logvar
 
     @staticmethod
@@ -440,21 +530,17 @@ class SyntheticDataVAE(nn.Module):
         logvar: torch.Tensor,
         beta: float = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Evidence Lower Bound (ELBO) Loss: Reconstruction Loss (MSE) + KL Divergence.
-        """
         recon_loss = F.mse_loss(recon_x, x, reduction="mean")
-        # KL divergence: -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
         kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
         total_loss = recon_loss + beta * kld_loss
         return total_loss, recon_loss, kld_loss
 
-    def generate(self, num_samples: int) -> torch.Tensor:
-        """
-        Generates synthetic multimodal feature vectors by sampling from prior z ~ N(0, I).
-        """
+    def generate(self, num_samples: int, target_class: int = 0) -> torch.Tensor:
+        """Generates synthetic multimodal feature vectors conditioned on target class."""
         self.eval()
+        device = next(self.parameters()).device
         with torch.no_grad():
-            z = torch.randn(num_samples, self.latent_dim)
-            samples = self.decode(z)
+            z = torch.randn(num_samples, self.latent_dim, device=device)
+            y = torch.full((num_samples,), target_class, dtype=torch.long, device=device)
+            samples = self.decode(z, y)
         return samples
