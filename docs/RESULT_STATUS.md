@@ -89,3 +89,83 @@ This document establishes the official validity ledger for every table across `E
 | **Table 4.3: VAE Synthetic vs Real Wasserstein** | Per-feature Wasserstein distance | **VALID** | `part4_vae_health.wasserstein_distance_table` | Replaces "Aligned" label with quantitative transport metrics. |
 | **Table 5.1: Real Data Execution Gate** | Configuration file check | **VALID** | `part5_data_gate` | Execution stopped at Part 4 due to missing real dataset configs. |
 
+
+
+---
+
+## 6. Iteration 6 Benchmark Disclosures & Valid Experiments (`EXECUTION_REPORT_v6.md`)
+
+| Table Name | Description | Status | JSON Backing Key | Reason & Evidence |
+|---|---|---|---|---|
+| **Table 1.1: Feature Distributions per Class on Current Synthetic Data** | 7-feature distribution on old data | **VALID** | `part1_validity_battery_current_data.feature_distribution_table` | Correctly demonstrates trivial separability of old synthetic data. |
+| **Table 1.2: Leave-One-Feature-Out (LOFO) on Current Data** | 7 rows LOFO | **VALID** | `part1_validity_battery_current_data.lofo_table` | Demonstrates all 1.0000 AUCs on trivially separable data. |
+| **Table 1.3: Single-Feature Performance on Current Data** | Univariate AUCs | **VALID** | `part1_validity_battery_current_data.single_feature_table` | Confirms multiple features alone achieve AUC $\ge 0.95$. |
+| **Table 1.4: Logistic Regression on 5 Heuristics Only** | 5-heuristic baseline on old data | **VALID** | `part1_validity_battery_current_data.logistic_regression_5_heuristics` | Demonstrates 1.0000 AUC on heuristics alone. |
+| **Table 1.5: ANN Calibration Reliability Bins (Current Data)** | Brier 0.0077, ECE 0.0681 | **VALID** | `part1_validity_battery_current_data.1d_ann_training_and_calibration.reliability_bins` | Accurate calibration measurement on legacy data. |
+| **Table 4.1: VAE Latent Dimensional KL Divergence** | Per-dim KL on hard benchmark | **INVALID** | `part4_vae_repair_health.per_latent_dim_kl` | Evaluated on non-disjoint train/val template families; pending Part 3 nested null validation. |
+| **Table 4.2: Decoder Output Variation over z** | Decoder std vs real std | **INVALID** | `part4_vae_repair_health.decoder_output_variation` | Non-disjoint template grouping; pending Part 3 nested null validation. |
+| **Table 4.3: Per-Feature Wasserstein Distance** | Real vs synthetic transport distances | **INVALID** | `part4_vae_repair_health.wasserstein_distance_table` | Evaluated on hard_v1 manifest which shares train/val families; pending Part 3 nested null validation. |
+| **Table 5.1: Canonical Experiments A-D Summary** | CNN, BiLSTM, ANN, Coordinator metrics | **INVALID** | `part5_valid_experiments.experiments_summary` | Evaluated on hard_v1 split with train/val family sharing; pending Part 3 nested null validation. |
+| **Table 5.2: Paired Bootstrap 95% CIs** | Exp C vs Unimodal, Exp D vs C | **INVALID** | `part5_valid_experiments.paired_bootstrap_cis` | Standard bootstrap rather than clustered by family; pending Part 3 nested null validation. |
+| **Table 5.3: Exp E Augmentation Arms Sweep** | None, VAE, Gaussian, Interpolation | **INVALID** | `part5_valid_experiments.experiment_e_arms_sweep` | Hard_v1 data split artifact; pending Part 3 nested null validation. |
+| **Table 5.4: Global Permutation Control Summary** | 100 seeds bounds check | **INVALID** | `part5_valid_experiments.global_permutation_control` | FAILED null control ($sd = 0.1975 > 2\sigma_0$); permuted train labels only against unpermuted test labels. |
+| **Table 5.5: Global Permutation 10-Bin Histogram** | 100 seeds histogram | **INVALID** | `part5_valid_experiments.global_permutation_control.histogram_10_bins` | Reflects bimodal artifact of train-only label permutation. |
+| **Table 5.6: ANN 36-Cell Hyperparameter Grid** | Hyperparameter sweep on hard data | **INVALID** | `part5_valid_experiments.ann_hyperparameter_grid` | Evaluated on non-disjoint validation template families. |
+| **Table 5.7: CNN OFAT Parameter Sensitivity Grid** | CNN OFAT variations | **INVALID** | `part5_valid_experiments.cnn_ofat_table` | Uncalibrated BatchNorm threshold artifact (accuracy 0.5000 at AUC 0.9366). |
+| **Table 5.8: BiLSTM Concat vs Attention Ablation** | 20 seeds ablation | **INVALID** | `part5_valid_experiments.bilstm_20_ablation` | Evaluated on hard_v1 split; pending Part 3 nested null validation. |
+| **Table 5.9: Canonical ANN Calibration Bins** | Brier 0.1330, ECE 0.1326 | **INVALID** | `part5_valid_experiments.ann_calibration.reliability_bins` | Hard_v1 manifest evaluation; pending Part 3 nested null validation. |
+
+---
+
+## 7. Audit of Historical 135-Parameter VAE Formulation
+
+The parameter count of 135 reported in Iterations 1, 2, and 3 was previously explained in `EXECUTION_REPORT_v6.md` using the hand-waving approximation "$67 \times 2 \approx 135$". 
+
+This statement is officially retracted. The exact architectural mechanism producing 135 parameters has been empirically verified and is permanently guarded by unit test `tests/test_iteration7_audit.py::test_buggy_vae_parameter_count_135`:
+
+When `SyntheticDataVAE` is instantiated as `SyntheticDataVAE(input_dim=7, latent_dim=4, hidden_dim=4, num_classes=2)`, the resulting layer dimensions and parameter counts are:
+
+| Layer Name | Weight Tensor Shape | Bias Tensor Shape | Total Layer Parameters | Mathematical Formula |
+|---|---|---|---|---|
+| `encoder_fc.0` | `[4, 9]` | `[4]` | **40** | $4 \times (7 + 2) + 4 = 40$ |
+| `encoder_fc.2` | `[2, 4]` | `[2]` | **10** | $(4 // 2) \times 4 + 2 = 10$ |
+| `fc_mu` | `[4, 2]` | `[4]` | **12** | $4 \times 2 + 4 = 12$ |
+| `fc_logvar` | `[4, 2]` | `[4]` | **12** | $4 \times 2 + 4 = 12$ |
+| `decoder.0` | `[2, 6]` | `[2]` | **14** | $(4 // 2) \times (4 + 2) + 2 = 14$ |
+| `decoder.2` | `[4, 2]` | `[4]` | **12** | $4 \times 2 + 4 = 12$ |
+| `decoder.4` | `[7, 4]` | `[7]` | **35** | $7 \times 4 + 7 = 35$ |
+| **Total Model Parameters** | — | — | **135** | $\sum = 40 + 10 + 12 + 12 + 14 + 12 + 35 = 135$ |
+
+---
+
+## 8. Iteration 7 Grouped Splits, Null Controls & Redone Experiments (`EXECUTION_REPORT_v7.md`)
+
+**Results Artifact:** `results/experiment_results_v7.json` (SHA-256: `24949ad2045c4b0f167703defaca3a5322cf18d885482bc511aaa63bce30f344`)  
+**Split Manifest:** `data/split_manifest_hard_v2.json` (SHA-256: `b22fb35755469044a262739f8254b60de4fd1c0116af7cf744a4995330698f6a`)  
+
+| Table Name | Description | Status | JSON Backing Key | Reason & Evidence |
+|---|---|---|---|---|
+| **Table 0.1: Commit History for `chief executive`** | `src/data_loader.py` git log history | **VALID** | `part0_disclosure.0c.commit_history_table` | Verified across commits `06f391f` through `c71fd06`. |
+| **Table 0.2: Audited Parameter Breakdown for Buggy VAE** | 14-layer exact parameter breakdown | **VALID** | `part0_disclosure.0d.layer_breakdown` | Guarded by `tests/test_iteration7_audit.py::test_buggy_vae_parameter_count_135`. |
+| **Table 1.1: hard_v1 Partition Structural Inventory** | Partition cases, unique records, families | **VALID** | `part1_data_audit.1a_partition_table` | Triggered Gate G-DATA due to 9 shared template families between train and val. |
+| **Table 1.2: Design Effect and Effective Sample Size** | DEFF and $n_{\text{eff}}$ by record and family | **VALID** | `part1_data_audit.1b_design_effect` | Cluster bootstrap vs case-level bootstrap ($DEFF = 1.3993$). |
+| **Table 1.3: Permutation Function Feature Independence Audit** | MI and $\chi^2$ dependencies | **VALID** | `part1_data_audit.1c_permutation_audit.feature_dependency_table` | Confirms mutual information $\approx 0$ and non-significant $\chi^2$. |
+| **Table 2.1: GroupKFold OOF Base Model Performance** | BiLSTM and CNN OOF vs Val vs Test | **VALID** | `part2_grouped_splits.2b_base_models` | Gate G-OOF PASSED ($|\text{OOF} - \text{Val}| \le 0.05$). |
+| **Table 2.2: Oracle Performance Ceilings** | LR and GBDT ceilings on family-disjoint splits | **VALID** | `part2_grouped_splits.2c_oracle_ceilings` | Test ceilings: LR $0.9935$, GBDT $0.9932$. |
+| **Table 3.N1: N1 i.i.d. Gaussian Null Control** | 100 seeds summary, histogram, raw rows | **VALID** | `part3_nested_null_controls.N1` | Gate G-PERM PASSED: Std $0.035185 \le 2\sigma_0$ ($0.066791$). |
+| **Table 3.N2: N2 Frozen Grouped-OOF Null Control** | 100 seeds summary, histogram, raw rows | **VALID** | `part3_nested_null_controls.N2` | Gate G-PERM PASSED: Std $0.031918 \le 2\sigma_0$ ($0.066791$). |
+| **Table 3.N3: N3 Full Pipeline Null Control** | 100 seeds summary, histogram, raw rows | **VALID** | `part3_nested_null_controls.N3` | Gate G-PERM PASSED: Std $0.031705 \le 2\sigma_0$ ($0.066791$). |
+| **Table 4.1: ANN 48-Cell Hyperparameter Grid** | Grid search with negative control | **VALID** | `part4_experiments.4b_ann_grid` | Winner: CELL_45 (SGD_m09, Init=default, Drop=0.2, BN=True). |
+| **Table 4.2: Canonical Experiments A-E Summary** | 5 seeds mean $\pm$ std across A-E | **VALID** | `part4_experiments.4c_canonical_summary` | Evaluated on family-disjoint test partition. |
+| **Table 4.3: Per-Seed Raw Metrics for Experiments A-E** | 5 seeds raw metrics | **VALID** | `part4_experiments.4c_canonical_summary.<arm>.per_seed_runs` | Recomputed in `tests/test_iteration7_roundtrip.py`. |
+| **Table 4.4: Cluster Bootstrap 95% CIs** | Resample families (1000 reps) | **VALID** | `part4_experiments.4c_cluster_ci_table` | Rigorous cluster bootstrap accounting for family intra-cluster correlation. |
+| **Table 4.5: LOFO and Single-Feature Audits** | 7 rows LOFO and univariate ANNs | **VALID** | `part4_experiments.4d_diagnostics` | Single-feature AUCs strictly capped $\le 0.85$. |
+| **Table 4.6: Calibration and Prediction Agreement** | Temperature scaling and pairwise agreement | **VALID** | `part4_experiments.4d_diagnostics` | Brier $0.0163 \to 0.0142$, ECE $0.0632 \to 0.0526$. |
+| **Table 4.7: CNN OFAT Anomaly Resolution** | Calibrated threshold vs rigid 0.5 | **VALID** | `part4_experiments.4e_cnn_ofat` | Resolves iteration 6 0.5000 accuracy artifact ($0.5000 \to 0.8800$). |
+| **Table 4.8: BiLSTM Concat vs Attention Comparison** | Pooling comparison on val and test | **VALID** | `part4_experiments.4f_bilstm_pooling` | Zero ceiling violations observed. |
+| **Table 5.1: Two-Sided Criteria for VAE Distribution** | Std ratios and Wasserstein per class | **VALID** | `part5_vae.5a_two_sided_criteria` | All 7 features satisfy $[0.5, 2.0]$ ratio and $\le 0.50$ Wasserstein ratio. |
+| **Table 5.2: Per-Dimension KL Divergence** | Active latent capacity | **VALID** | `part5_vae.5a_per_dim_kl` | All 4 dimensions active ($\ge 0.05$ nats). |
+| **Table 5.3: GBDT Real vs Synthetic Discriminator** | 5-fold CV AUC and positive control | **VALID** | `part5_vae.5b_discriminator` | Positive control AUC $1.0000 > 0.90$ verifies discriminator power. |
+| **Table 5.4: Experiment E 4-Arm Ratio Sweep** | Sweep across ratios $\{0.0, 0.25, 0.50, 1.00\}$ | **VALID** | `part5_vae.5c_ratio_sweep` | Demonstrates performance stability across augmentation ratios. |
+| **Table 6.1: Formal Research Questions (RQ1, RQ2)** | Strict yes/no/inconclusive with 95% CI | **VALID** | `research_questions` | RQ1 (Fusion): `inconclusive` (95% CI $[-0.0002, 0.0041]$); RQ2 (Augmentation): `inconclusive` (95% CI $[0.0000, 0.0100]$). |
+

@@ -37,7 +37,7 @@ SMOKE_BANNER = "SYNTHETIC BENCHMARK - NOT REAL-WORLD EVIDENCE"
 # Template Families Configuration
 # =====================================================================
 
-TRAIN_VAL_TEMPLATES = {
+TRAIN_TEMPLATES = {
     "invoice_payment": {
         "benign": [
             "Please review the attached monthly vendor invoice for {month}. Payment scheduled per compliance policy.",
@@ -108,9 +108,68 @@ TRAIN_VAL_TEMPLATES = {
             "Internal audit alert: Unverified privileged access logs flagged. Download full investigation dossier: http://audit-report.tk",
         ],
     },
+    "executive_travel": {
+        "benign": [
+            "Flight reservation confirmation for security summit in Seattle. E-ticket and itinerary attached: ticket_{num}.pdf",
+            "Corporate travel advisory: Global risk team hotel booking confirmed for annual conference.",
+            "Board member travel schedule: Airport transfer and hotel logistics confirmed with executive protection detail.",
+            "Expense pre-authorization: Corporate card allocated for international forensic training seminar.",
+        ],
+        "suspicious": [
+            "EMERGENCY TRAVEL BOOKING: Immediate itinerary update required for CEO flight. Access reservation: http://flight-manage.xyz/itin",
+            "Corporate travel cancellation: Unpaid airline booking fee $14.50 required to maintain ticket. Settle at http://192.168.3.11/pay",
+            "Urgent travel manifest: Download executive delegation travel dossier attached: travel_manifest.exe",
+            "VIP passenger alert: Flight gate change requires security verification. Complete authorization: http://air-portal.buzz/auth",
+        ],
+    },
 }
 
-HELD_OUT_TEST_TEMPLATES = {
+VAL_TEMPLATES = {
+    "it_support_ticket": {
+        "benign": [
+            "Helpdesk ticket #{num} resolved: Software license renewal completed for forensic analysis workstation.",
+            "IT Support dispatch: Workstation hardware diagnostic completed with zero memory integrity faults.",
+            "Service request #{num}: Access granted to secondary log aggregation repository per security ticket.",
+            "IT asset management: Please verify your assigned laptop inventory and serial number on corporate portal.",
+        ],
+        "suspicious": [
+            "CRITICAL IT TICKET #{num}: Urgent rootkit alert detected on endpoint. Download remote repair tool: tool_fix.exe",
+            "Helpdesk priority alert: Corporate password reset requested from unknown device. Reject or authorize: http://192.168.8.44/reset",
+            "IT security escalation: Unrecognized administrator ticket opened. Confirm identity at http://helpdesk-auth.top/verify",
+            "Urgent IT ticket #{num}: Security patch mandatory within 1 hour. Execute remediation package: http://ticket-patch.xyz/run",
+        ],
+    },
+    "hr_benefit_update": {
+        "benign": [
+            "Annual benefits enrollment: Review healthcare and retirement plan options before the November deadline.",
+            "HR notification: Updated employee handbook and code of conduct published to company intranet.",
+            "Payroll advisory: Direct deposit account verification required for mid-year compensation adjustment.",
+            "Human Resources memo: Corporate wellness program incentives and health screening schedule announced.",
+        ],
+        "suspicious": [
+            "ACTION REQUIRED: Corporate payroll calculation error. Verify your direct deposit details immediately: http://hr-payroll.buzz/verify",
+            "Confidential HR review: Employee evaluation dossier and termination schedule leaked. View document: http://10.2.1.90/dossier",
+            "HR compensation update: Download revised salary scale and bonus allocation table attached: salary_table.docm",
+            "Mandatory HR compliance: Acknowledge disciplinary policy changes to avoid administrative leave: http://employee-portal.xyz/ack",
+        ],
+    },
+    "cloud_access_request": {
+        "benign": [
+            "Cloud infrastructure alert: AWS IAM role assumption logged for automated backup service.",
+            "DevOps deployment notice: Production Kubernetes cluster upgrade scheduled for Saturday maintenance window.",
+            "GCP project access: Read-only permissions granted for security monitoring dataset per change ticket.",
+            "Cloud security advisory: Multi-region S3 bucket encryption policy successfully applied across all repositories.",
+        ],
+        "suspicious": [
+            "URGENT CLOUD BREACH: Compromised AWS API keys detected in repository. Revoke and rotate immediately: http://aws-rotate.top/keys",
+            "Production cluster outage: Critical pod crash on payment gateway. Authenticate DevOps access: http://192.168.12.5/k8s",
+            "Cloud credential expiration: GCP service account token expired. Re-authenticate infrastructure credentials: http://cloud-auth.work/login",
+            "Security group violation: Unauthorized ingress rule opened on database cluster. Run remediation CLI attached: fix_cloud.vbs",
+        ],
+    },
+}
+
+TEST_TEMPLATES = {
     "shipping_delivery_notice": {
         "benign": [
             "Shipping confirmation: Your hardware token package has shipped via FedEx. Tracking: 48291048201.",
@@ -154,6 +213,10 @@ HELD_OUT_TEST_TEMPLATES = {
         ],
     },
 }
+
+# Backward-compatibility aliases
+TRAIN_VAL_TEMPLATES = {**TRAIN_TEMPLATES, **VAL_TEMPLATES}
+HELD_OUT_TEST_TEMPLATES = TEST_TEMPLATES
 
 
 # =====================================================================
@@ -357,13 +420,30 @@ class HardForensicDatasetGenerator:
     def generate_benchmark_partition(
         self,
         num_samples: int,
-        is_test_split: bool,
+        is_test_split: bool = False,
+        split: Optional[str] = None,
     ) -> List[MultimodalCaseItem]:
         """
         Generates paired multimodal cases for a given split using raw artifacts.
+        Supports explicit family-disjoint splits: 'train', 'val', 'test'.
         Test split uses strictly held-out template families.
         """
-        template_bank = HELD_OUT_TEST_TEMPLATES if is_test_split else TRAIN_VAL_TEMPLATES
+        if split == "train":
+            template_bank = TRAIN_TEMPLATES
+            case_prefix = "CASE"
+        elif split == "val":
+            template_bank = VAL_TEMPLATES
+            case_prefix = "VAL"
+        elif split == "test":
+            template_bank = TEST_TEMPLATES
+            case_prefix = "TEST"
+        elif is_test_split:
+            template_bank = HELD_OUT_TEST_TEMPLATES
+            case_prefix = "TEST"
+        else:
+            template_bank = TRAIN_VAL_TEMPLATES
+            case_prefix = "CASE"
+
         template_families = list(template_bank.keys())
 
         cases: List[MultimodalCaseItem] = []
@@ -402,8 +482,11 @@ class HardForensicDatasetGenerator:
             # Store extracted 5-heuristic vector in metadata
             meta_with_heur = dict(meta)
             meta_with_heur["heuristic_features"] = heur
+            meta_with_heur["template_family"] = fam
+            meta_with_heur["target_label"] = target_label
+            meta_with_heur["is_label_flipped"] = bool(actual_label != target_label)
+            meta_with_heur["split"] = split or ("test" if is_test_split else "train")
 
-            case_prefix = "TEST" if is_test_split else "CASE"
             item = MultimodalCaseItem(
                 case_id=f"{case_prefix}-{i+1:05d}",
                 text_content=text,
@@ -450,10 +533,10 @@ def generate_hard_benchmark_dataset(
     )
 
     print(f"[*] Generating Hard-Synthetic Benchmark (Train={train_n}, Val={val_n}, Test={test_n})...")
-    # Record-level pre-split: train/val use train templates, test uses strictly held-out templates
-    train_cases = generator.generate_benchmark_partition(train_n, is_test_split=False)
-    val_cases = generator.generate_benchmark_partition(val_n, is_test_split=False)
-    test_cases = generator.generate_benchmark_partition(test_n, is_test_split=True)
+    # Disjoint grouped partition: train, val, and test are mutually family-disjoint
+    train_cases = generator.generate_benchmark_partition(train_n, split="train")
+    val_cases = generator.generate_benchmark_partition(val_n, split="val")
+    test_cases = generator.generate_benchmark_partition(test_n, split="test")
 
     # Check zero overlap by content hash and ID
     tr_hashes = {c.content_hash for c in train_cases}
@@ -462,6 +545,21 @@ def generate_hard_benchmark_dataset(
     assert len(tr_hashes.intersection(va_hashes)) == 0, "Hash leakage between train and val"
     assert len(tr_hashes.intersection(te_hashes)) == 0, "Hash leakage between train and test"
     assert len(va_hashes.intersection(te_hashes)) == 0, "Hash leakage between val and test"
+
+    # Check zero overlap by template family
+    tr_fams = {c.metadata["template_family"] for c in train_cases}
+    va_fams = {c.metadata["template_family"] for c in val_cases}
+    te_fams = {c.metadata["template_family"] for c in test_cases}
+    assert len(tr_fams.intersection(va_fams)) == 0, "Family leakage between train and val"
+    assert len(tr_fams.intersection(te_fams)) == 0, "Family leakage between train and test"
+    assert len(va_fams.intersection(te_fams)) == 0, "Family leakage between val and test"
+
+    # Check minimum families per split from config
+    min_fams = cfg["dataset"].get("min_families_per_split", {})
+    if min_fams:
+        assert len(tr_fams) >= min_fams.get("train", 0), f"Train families {len(tr_fams)} < min {min_fams.get('train')}"
+        assert len(va_fams) >= min_fams.get("val", 0), f"Val families {len(va_fams)} < min {min_fams.get('val')}"
+        assert len(te_fams) >= min_fams.get("test", 0), f"Test families {len(te_fams)} < min {min_fams.get('test')}"
 
     stats = {
         "seed": seed,

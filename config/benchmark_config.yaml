@@ -1,5 +1,5 @@
 # ForenSightX Hard-Synthetic Benchmark Configuration
-# Iteration 6 Specification Adherence
+# Iteration 7 Specification Adherence
 # All numerical thresholds not present in ForenSightX_Project_Architecture.docx are marked ASSUMPTION.
 
 dataset:
@@ -9,22 +9,39 @@ dataset:
   val_ratio: 0.16666666666666666    # 200 cases
   test_ratio: 0.25                  # 300 cases (meets min_test_cases >= 300)
   min_test_cases: 300               # ASSUMPTION-06
-  manifest_path: "data/split_manifest_hard_v1.json"
+  manifest_path_v1: "data/split_manifest_hard_v1.json"
+  manifest_path: "data/split_manifest_hard_v2.json"
+  min_families_per_split:
+    train: 4
+    val: 2
+    test: 2
 
 generator:
   single_feature_auc_cap: 0.85      # ASSUMPTION-07: Maximum allowed univariate test AUC for any heuristic or base feature
   label_noise_rate: 0.05            # ASSUMPTION-08: Label flipping rate
   modality_conflict_rate: 0.05      # ASSUMPTION-09: Uncorrelated cross-modal cue rate
-  held_out_test_template_families:  # Unseen in train/val
-    - "shipping_delivery_notice"
-    - "vpn_credential_update"
-    - "conference_invitation"
-  train_val_template_families:
+  train_template_families:
     - "invoice_payment"
     - "account_suspension"
     - "urgent_wire"
     - "meeting_reschedule"
     - "project_status"
+    - "executive_travel"
+  val_template_families:
+    - "it_support_ticket"
+    - "hr_benefit_update"
+    - "cloud_access_request"
+  test_template_families:
+    - "shipping_delivery_notice"
+    - "vpn_credential_update"
+    - "conference_invitation"
+
+oof:
+  tolerance: 0.05                   # ASSUMPTION-14: Max allowed difference between OOF AUC and Val AUC
+
+grid:
+  negative_control_lr: 2.0          # Negative control LR expected to fail/saturate
+  saturation_threshold: 0.95        # Fraction of outputs within [0, 0.05] or [0.95, 1.0]
 
 vae_repair:
   latent_dim: 4                     # ASSUMPTION-11
@@ -33,7 +50,9 @@ vae_repair:
   kl_warmup_epochs: 15              # ASSUMPTION-11: Linear beta warmup from 0.0 to 1.0
   free_bits: 0.1                    # ASSUMPTION-11: Minimum nats per dimension before penalty
   per_dim_kl_threshold: 0.05        # ASSUMPTION-13: Minimum KL to avoid collapse
-  decoder_std_ratio_threshold: 0.15 # ASSUMPTION-12: Synthetic-to-real std ratio threshold
+  two_sided_ratio_min: 0.5          # ASSUMPTION-15: Minimum synthetic-to-real std ratio
+  two_sided_ratio_max: 2.0          # ASSUMPTION-15: Maximum synthetic-to-real std ratio
+  wasserstein_ratio_max: 0.50       # ASSUMPTION-16: Maximum Wasserstein / real std ratio
   discriminator_auc_max: 0.85       # Real vs synthetic indistinguishability cap
 
 experiments:
@@ -42,4 +61,3 @@ experiments:
   ci_confidence_level: 0.95
   global_permutation_seeds: 100
   synthetic_ratio_sweep: [0.0, 0.25, 0.50, 1.00]
-
