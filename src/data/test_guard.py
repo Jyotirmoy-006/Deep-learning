@@ -33,12 +33,18 @@ class SingleUseTestGuard:
 
     def __init__(
         self,
-        X_test: Union[np.ndarray, torch.Tensor],
-        y_test: Union[np.ndarray, torch.Tensor],
+        X_test: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        y_test: Optional[Union[np.ndarray, torch.Tensor]] = None,
         split_name: str = "test",
     ):
-        self.X_test = np.asarray(X_test) if isinstance(X_test, (np.ndarray, list)) else X_test.detach().cpu().numpy()
-        self.y_test = np.asarray(y_test).astype(int).ravel() if isinstance(y_test, (np.ndarray, list)) else y_test.detach().cpu().numpy().astype(int).ravel()
+        if X_test is not None:
+            self.X_test = np.asarray(X_test) if isinstance(X_test, (np.ndarray, list)) else X_test.detach().cpu().numpy()
+        else:
+            self.X_test = None
+        if y_test is not None:
+            self.y_test = np.asarray(y_test).astype(int).ravel() if isinstance(y_test, (np.ndarray, list)) else y_test.detach().cpu().numpy().astype(int).ravel()
+        else:
+            self.y_test = None
         self.split_name = split_name
         self._evaluated_seeds: set = set()
         self._access_log: List[Dict[str, Any]] = []
@@ -47,9 +53,41 @@ class SingleUseTestGuard:
     def access_log(self) -> List[Dict[str, Any]]:
         return list(self._access_log)
 
+    def get_access_log(self) -> List[Dict[str, Any]]:
+        return list(self._access_log)
+
     @property
     def total_evaluations(self) -> int:
         return len(self._access_log)
+
+    def evaluate(
+        self,
+        caller_name: str,
+        sample_count: int,
+        predict_fn_or_probs: Union[Callable[[], np.ndarray], np.ndarray, torch.Tensor],
+    ) -> np.ndarray:
+        """
+        Logs caller, sample count, and prediction SHA-256 hash for general test evaluations (Rule G13).
+        """
+        if callable(predict_fn_or_probs):
+            with torch.no_grad():
+                preds = predict_fn_or_probs()
+        else:
+            preds = predict_fn_or_probs
+
+        if isinstance(preds, torch.Tensor):
+            preds_np = preds.detach().cpu().numpy().astype(float).ravel()
+        else:
+            preds_np = np.asarray(preds).astype(float).ravel()
+
+        pred_hash = hashlib.sha256(preds_np.tobytes()).hexdigest()
+        self._access_log.append({
+            "evaluation_index": len(self._access_log) + 1,
+            "caller": caller_name,
+            "sample_count": sample_count,
+            "prediction_sha256": pred_hash,
+        })
+        return preds_np
 
     def evaluate_test(
         self,

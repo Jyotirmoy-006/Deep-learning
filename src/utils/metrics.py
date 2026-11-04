@@ -109,3 +109,69 @@ def compute_confusion_and_derived_metrics(
     )
     return metrics
 
+
+def compute_summary_row_from_seed_runs(
+    runs: list,
+    ddof: int = 0,
+) -> Dict[str, Any]:
+    """
+    Rule G16: Single authoritative function computing summary row statistics
+    (mean and std) strictly from the printed per-seed rows.
+    """
+    assert len(runs) > 0, "Runs list cannot be empty"
+
+    aucs = [float(r["auc"]) for r in runs]
+    accs = [float(r["accuracy"]) for r in runs]
+    precs = [float(r["precision"]) for r in runs]
+    recs = [float(r["recall"]) for r in runs]
+    f1s = [float(r["f1"]) for r in runs]
+    briers = [float(r["brier_score"]) for r in runs]
+
+    return {
+        "mean_auc": float(np.mean(aucs)),
+        "std_auc": float(np.std(aucs, ddof=ddof)),
+        "mean_accuracy": float(np.mean(accs)),
+        "std_accuracy": float(np.std(accs, ddof=ddof)),
+        "mean_precision": float(np.mean(precs)),
+        "std_precision": float(np.std(precs, ddof=ddof)),
+        "mean_recall": float(np.mean(recs)),
+        "std_recall": float(np.std(recs, ddof=ddof)),
+        "mean_f1": float(np.mean(f1s)),
+        "std_f1": float(np.std(f1s, ddof=ddof)),
+        "mean_brier_score": float(np.mean(briers)),
+        "std_brier_score": float(np.std(briers, ddof=ddof)),
+        "count": len(runs),
+    }
+
+
+def find_optimal_threshold(
+    y_true: Union[np.ndarray, list],
+    y_probs: Union[np.ndarray, list],
+    metric: str = "f1",
+) -> float:
+    """
+    Rule G18: Tunes threshold strictly on validation split per arm per seed.
+    Returns optimal threshold maximizing F1 score (or accuracy).
+    """
+    y_t = np.asarray(y_true).astype(int).ravel()
+    y_p = np.asarray(y_probs).astype(float).ravel()
+
+    best_th = 0.5
+    best_score = -1.0
+
+    # Grid search across candidate thresholds [0.10, 0.90]
+    for th in np.linspace(0.10, 0.90, 81):
+        bin_pred = (y_p >= th).astype(int)
+        tp = np.sum((y_t == 1) & (bin_pred == 1))
+        fp = np.sum((y_t == 0) & (bin_pred == 1))
+        fn = np.sum((y_t == 1) & (bin_pred == 0))
+        denom = 2.0 * tp + fp + fn
+        score = (2.0 * tp / denom) if denom > 0 else 0.0
+
+        if score > best_score:
+            best_score = score
+            best_th = float(th)
+
+    return round(best_th, 4)
+
+

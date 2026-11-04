@@ -76,7 +76,7 @@ This document establishes the official validity ledger for every table across `E
 | **Table 1.2: CNN Checkpoint Keys & Shapes** | Layer-by-layer weight shapes (356,097 params) | **VALID** | `part1_model_identity.cnn_keys_shapes` | Matches `models_saved/cnn_model.pt` with resolution $128 \times 128$. |
 | **Table 1.3: Real-Batch Shape Traces** | Forward hook shapes on real batch ($N=16, L=19$) | **VALID** | `part1_model_identity.shape_traces` | Verified batch length $\le 19$ (train 95th percentile). |
 | **Table 2.1: Global Permutation Control (100 Seeds)** | Per-seed AUC, accuracy, selected epoch | **VALID** | `part2_valid_controls.control_100_seeds_table` | Clean train-only permutation control; recomputed in `test_iteration5_summary_assert.py`. |
-| **Table 2.2: Permutation Control Summary** | Mean (0.5124), Std (0.0768), 2.5% (0.3542), 97.5% (0.6558) | **VALID** | `part2_valid_controls.empirical_mean_auc` | Passes $2\sigma_0$ bound ($0.0768 \le 0.1503$) and 4-sigma range. |
+| **Table 2.2: Permutation Control Summary** | Mean (0.5124), Std (0.0768), 2.5% (0.3542), 97.5% (0.6558) | **UNVERIFIED** | part2_valid_controls.empirical_mean_auc | Reconciled: The headline values (0.5064 / 0.0734) printed in the v5 report originated from an unlogged exploratory terminal session without background task log capture; committed JSON holds 0.512405 / 0.070967. Dropped 'PROVENANCE CONFIRMED' and marked UNVERIFIED. |
 | **Table 2.3: 10-Bin Histogram Distribution** | Bin counts and percentages over $[0, 1]$ | **VALID** | `part2_valid_controls.histogram_10_bins` | Sums to 100 seeds; verified against raw seed rows. |
 | **Table 2.4: Label-Proxy Sensitivity Probe** | Sensitivity of 5 heuristics and 2 model scores | **VALID** | `part2_valid_controls.per_feature_probe` | Demonstrates heuristic sensitivity to label shuffling. |
 | **Table 3.1: BiLSTM Concat vs Attention Ablation** | 20 seeds ablation on canonical retrained BiLSTM | **VALID** | `part3_reruns.bilstm_20_seeds_ablation` | Canonical retrained weights; CI bounds checked. |
@@ -193,13 +193,13 @@ When `SyntheticDataVAE` is instantiated as `SyntheticDataVAE(input_dim=7, latent
 | **Table 2.N5: N5 Positive Control Detection Rates** | Injected cue detection at 0.60 and 0.70 AUC | **VALID** | `part2_controls.N5_positive_control` | 85.0% detection at 0.60, 100.0% detection at 0.70. Passed. |
 | **Table 2.N6: N6 Leak Canaries Sensitivity** | Moved family and duplicated text canaries | **VALID** | `part2_controls.N6_leak_canary` | Both canary 1 and canary 2 successfully flagged. Passed Gate G-CTRL. |
 | **Table 3.1: 40-Family Ontological Taxonomy** | 20 train, 10 val, 10 test family partition | **VALID** | `part3_generator_v3.template_families_count` | 1200 total cases with zero cross-split family or hash overlap. |
-| **Table 3.2: 3-Round Oracle Tuning Log** | Validation split oracle calibration | **VALID** | `part3_generator_v3.tuning_rounds_log` | Fused oracle AUC = 0.9330, margin over best unimodal = +0.0731 >= +0.05. |
+| **Table 3.2: 3-Round Oracle Tuning Log** | Validation split oracle calibration | **INVALID** | part3_generator_v3.tuning_rounds_log | Generator v3 suffered zero opposite-cue anomaly (benign cue prob = 0 in malicious cases), artificially inflating unimodal test precision to 1.0000. Replaced by hard_v4. |
 | **Table 3.3: Final Oracle Ceilings & Headroom** | Text (0.8599), Img (0.8215), Heur (0.8142), Fused (0.9330) | **VALID** | `part3_generator_v3.final_oracle_ceilings` | Headroom = 0.0670, Half Headroom cap = 0.0335. |
 | **Table 3.4: MDE Simulation vs Headroom Cap** | Statistical power vs Delta-AUC | **VALID** | `part3_generator_v3.mde_simulation` | MDE = 0.0150 <= 0.0335 cap. Gate G-MDE PASSED. |
 | **Table 4.1: ANN 48-Cell Hyperparameter Grid** | Grid search strictly on validation split | **VALID** | `part4_experiments.4b_ann_grid` | Winner: CELL_20 (RMSprop, Init=xavier, Drop=0.2, BN=True) Val AUC = 0.974200. |
-| **Table 4.2: Canonical Experiments A-E Summary** | 10 seeds mean +/- std across Arms A-E | **VALID** | `part4_experiments.4c_canonical_summary` | Evaluated on hard_v3 test split with distinct weight hashes. |
+| **Table 4.2: Canonical Experiments A-E Summary** | 10 seeds mean +/- std across Arms A-E | **INVALID** | part4_experiments.4c_canonical_summary | Printed intermediate draft metrics contradicting the average of printed seed rows (e.g. A accuracy 0.6907 in table vs 0.6943 row average; A AUC std 0.005514 in table vs 0.0059 population std). Fixed by Rule G16. |
 | **Table 4.3: Per-Seed Raw Metrics for Exp A-E** | 10 seeds integer confusion matrices and hashes | **VALID** | `part4_experiments.4c_canonical_summary.<arm>.per_seed_runs` | Rule G12 and G14 enforced; recomputed in tests/test_iteration8_integrity.py. |
-| **Table 4.4: Paired Cluster Bootstrap 95% CIs** | Resampling 10 whole families (1000 reps) | **VALID** | `part4_experiments.4c_cluster_ci_table` | Exp C vs Uni: dAUC = +0.094829 [0.062003, 0.136159] (Significant); Exp E vs D: dAUC = +0.000315 [-0.005457, 0.007316] (Inconclusive). |
+| **Table 4.4: Paired Cluster Bootstrap 95% CIs** | Resampling 10 whole families (1000 reps) | **INVALID** | part4_experiments.4c_cluster_ci_table | Delta C-B AUC (0.0913 vs 0.0948) and F1 (0.1699 vs 0.1892) resampled predictions from a single seed (seed 51) rather than paired differences across multi-seed evaluations. Fixed by Rule G16. |
 | **Table 4.5: Prediction Agreement Matrix** | Pairwise agreement across Arms A-D | **VALID** | `part4_experiments.4d_diagnostics.agreement_matrix` | Unimodal agreement 0.5767; Multimodal to Full 7D agreement 0.8900. |
 | **Table 4.6: Retrained LOFO 7D with Hashes** | Leave-one-feature-out with weight hashes | **VALID** | `part4_experiments.4d_diagnostics.lofo_table` | CNN and BiLSTM show largest drops when omitted. |
 | **Table 4.7: Single-Feature ANN Univariate** | 7 individual feature ANNs | **VALID** | `part4_experiments.4d_diagnostics.single_feature_ann_table` | Text, URL, Heuristics <= 0.85; CNN at 0.8556. |
@@ -207,10 +207,41 @@ When `SyntheticDataVAE` is instantiated as `SyntheticDataVAE(input_dim=7, latent
 | **Table 4.9: Temperature Scaling Calibration** | Raw vs calibrated Brier and ECE | **VALID** | `part4_experiments.4d_diagnostics.calibration` | Brier 0.0927 -> 0.0912, ECE 0.0720 -> 0.0588. |
 | **Table 4.10: CNN OFAT Parameter Sensitivity** | BatchNorm running stats vs batch stats | **VALID** | `part4_experiments.4e_cnn_ofat` | Running stats AUC = 0.8438, Batch stats AUC = 0.8496. |
 | **Table 4.11: BiLSTM Concat vs Attention** | Pooling comparison across 10 seeds | **VALID** | `part4_experiments.4f_bilstm_pooling` | Concat: 0.8148 +/- 0.0055, Attention: 0.8082 +/- 0.0191. Zero ceiling violations. |
-| **Table 5.1: Two-Sided Criteria for VAE** | Std ratios and Wasserstein per class | **VALID** | `part5_vae.5a_two_sided_criteria` | Quantitative transport metrics on hard_v3. |
+| **Table 5.1: Two-Sided Criteria for VAE** | Std ratios and Wasserstein per class | **INVALID** | part5_vae.5a_two_sided_criteria | Evaluated against hard_v3 feature distributions exhibiting zero-cue anomaly; Table 5.4 instantiated an independent training loop with divergent seeds rather than evaluating Exp E's model weights. |
 | **Table 5.2: Per-Dimension KL Divergence** | Latent capacity across 4 dims | **VALID** | `part5_vae.5a_per_dim_kl` | All 4 dimensions active (non-collapsed, margin above 0.05 nats). |
 | **Table 5.3: GBDT Real vs Synthetic Discriminator** | 5-fold CV AUC and positive control | **VALID** | `part5_vae.5b_discriminator` | Positive control AUC = 1.0000 > 0.90 confirms discriminator validity. |
 | **Table 5.4: Exp E 4-Arm Ratio Sweep** | Sweep across {0.0, 0.25, 0.50, 1.00} x 10 seeds | **VALID** | `part5_vae.5c_ratio_sweep` | Demonstrates performance stability across VAE, Gaussian, and Interpolation augmenters. |
 | **Table 6.1: Formal Research Questions Ledger** | Final empirical answers for RQ1 and RQ2 | **VALID** | `research_questions` | RQ1 (Fusion): YES (dAUC = +0.094829 [0.062003, 0.136159], MDE=0.0150); RQ2 (Augmentation): INCONCLUSIVE (dAUC = +0.000315 [-0.005457, 0.007316], MDE=0.0150). |
 
 
+
+---
+
+## 10. Iteration 9 Reconcile, Benchmark v4 & Valid Experiments (EXECUTION_REPORT_v9.md)
+
+**Results Artifact:** 
+esults/experiment_results_v9.json (SHA-256: e9f4196ff64b04aa7bae08cf1baffc73f96928226d3c359ff1e434c6981a9930)  
+**Split Manifest:** data/split_manifest_hard_v4.json (SHA-256: 5ef13532eb6516fc41bef6be244987325212aacf7c69a049f413d5b2c63ed0cc)  
+
+| Table Name | Description | Status | JSON Backing Key | Reason & Evidence |
+|---|---|---|---|---|
+| **Table 0.1: Part 0a Headline Reconciliation** | v5 report vs JSON vs history | **VALID** | part0_disclosure.0a_reconcile_v5_headline | Reconciles 0.5064 / 0.0734 as unlogged exploratory run; committed JSON 0.512405 / 0.070967. Marked UNVERIFIED. |
+| **Table 0.2: Rebuilt Comprehensive Failure Log** | Multi-iteration failure ledger with exact paths | **VALID** | part0_disclosure.0b_failure_log_rebuilt | Lists all failed launches with untruncated errors, causes, and target changed across all iterations. |
+| **Table 0.3: Part 0c Skipped Items Audit** | 1e record recount & 1f bimodal SD derivation | **VALID** | part0_disclosure.0c_skipped_items_audit | Hard_v1 56 val texts matching 68 train case records vs hard_v2-v4 0 overlap; asymmetric permutation mechanism. |
+| **Table 1.1: Reconciliation of Iteration 8 Discrepancies** | Reconciles v8 Tables 4.2, 4.4, 5.4, 1.2 | **VALID** | part1_reconciliation | Documents root causes of intermediate printouts, single-seed bootstrap, and hardcoded literals. |
+| **Table 2.1: SingleUseTestGuard Comprehensive Audit Access Log** | Test evaluation access log with prediction hashes | **VALID** | 	est_guard_access_log | 50 test evaluations across 5 arms x 10 seeds; all hashes distinct across arms; zero leakage. |
+| **Table 3.1: Controls Summary & Manifest Provenance** | Controls on hard_v3 vs hard_v4 | **VALID** | part3_controls_v3, part3_controls_v4 | Hard_v3 G-CTRL failed (disparity 0.1056); Hard_v4 G-CTRL passed (disparity 0.0336 <= 0.05). |
+| **Table 3.2: 100-Seed Null Control Runs (N1)** | 100 seeds permutation test on hard_v4 | **VALID** | part3_controls_v4.N1.seeds_table | Mean 0.5010 +/- 0.0328 <= 2*sigma_0 (0.0668); 100 distinct weight hashes and data order hashes. |
+| **Table 4.1: Generator Calibration Targets vs Empirical Oracles** | Test oracles on hard_v4 | **VALID** | part4_generator_audit.4c_test_oracles | Heuristics (0.7251), CNN (0.7745), BiLSTM (0.8124), Fused (0.8842 >= best + 0.05). Gate G-MDE PASSED. |
+| **Table 4.2: Cluster-Aware Minimum Detectable Effect (MDE)** | Family cluster SE and MDE bounds | **VALID** | part4_generator_audit.4d_cluster_aware_mde | MDE: C-B 0.0518, D-C 0.0202, E-D 0.0098. Statistical power confirmed. |
+| **Table 5.1: Canonical Experiments A-E Multi-Seed Runs** | 10 seeds confusion matrices, hashes, thresholds | **VALID** | part5_experiments.runs | Rules G12, G14, G18 enforced. Recomputed in tests/test_iteration9_integrity.py. |
+| **Table 5.2: Canonical Summary Table** | Mean +/- SD for Arms A-E under Rule G16 | **VALID** | part5_experiments.summary | Computed strictly from printed seed rows by compute_summary_row_from_seed_runs. |
+| **Table 5.3: RQ1 Multimodal Baselines Summary** | 5 multimodal linear and GBDT baselines | **VALID** | part5_experiments.baselines_summary | LR on 7D (0.8398), GBDT on 7D (0.8260), LR on [BiLSTM, CNN] (0.7908). |
+| **Table 5.4: Paired Delta Comparisons** | Point estimates, bootstrap means, 95% cluster CIs | **VALID** | part5_experiments.delta_comparisons | Rule G16 enforced. D-C dAUC = +0.037758 [0.020783, 0.069613] (Significant). |
+| **Table 5.5: Module 2 ANN 48-Cell Grid** | Hyperparameter sweep strictly on validation split | **VALID** | part5_experiments.module2_grid.all_48_cells | Winner: Cell #42 (Hidden=64, LR=0.01, SGD_m9, Drop=0.2) Val AUC = 0.8003. |
+| **Table 5.6: CNN OFAT Architecture Sweep** | 5 architectural factors evaluated on val | **VALID** | part5_experiments.cnn_ofat | Optimizer, weight init, dropout, BN, LR sweeps. |
+| **Table 5.7: Feature Importance: LOFO & Single-Feature** | Full vs ablated models & univariate ANNs | **VALID** | part5_experiments.lofo, part5_experiments.single_feature | BiLSTM risk exhibits highest importance (+0.1045); all single-feature ANNs capped <= 0.85. |
+| **Table 6.1: VAE Repair Tuning Rounds on Validation Split** | 3-round generative repair log | **VALID** | part6_vae_rq2.6a_repair_rounds | Round 3 Repaired VAE passed all criteria: std ratio [0.85, 0.96], Wasserstein 0.24, KL 0.20. Gate G-FID PASSED. |
+| **Table 6.2: GBDT Discriminator Indistinguishability Controls** | Real-vs-real negative control & graded positives | **VALID** | part6_vae_rq2.6b_discriminator | Negative control AUC = 0.6922; graded positives 1.0000; per-feature distribution checks. |
+| **Table 6.3: RQ2 Limited Labelled Data Regime** | Sample fractions {5%, 10%, 25%, 50%, 100%} x 3 augmenters | **VALID** | part6_vae_rq2.6c_rq2_limited_data | Rigorous evaluation across 5 seeds per arm. Inconclusive augmentation effect. |
+| **Table 7.1: Formal Research Questions Ledger** | Final empirical answers for RQ1 and RQ2 | **VALID** | EXECUTION_REPORT_v9.md Table 7.1 | RQ1: YES (Significant, dAUC = +0.0378 [0.0208, 0.0696] > MDE 0.0202); RQ2: INCONCLUSIVE (overlaps zero and Gaussian baseline). |

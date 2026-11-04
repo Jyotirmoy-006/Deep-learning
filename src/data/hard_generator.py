@@ -1012,3 +1012,298 @@ def generate_hard_benchmark_dataset_v3(
     print(f"[*] Manifest SHA-256: {manifest_sha}")
 
     return train_cases, val_cases, test_cases, stats
+
+
+# =====================================================================
+# GENERATOR V4: 60-FAMILY GENERALIZABLE BENCHMARK (Iteration 9)
+# =====================================================================
+
+TRAIN_TEMPLATES_V4 = {
+    **TRAIN_TEMPLATES_V3,
+    "pension_administration": "Retirement benefit pension annuity calculation and defined contribution rollover.",
+    "whistleblower_complaint": "Confidential corporate integrity hotline reporting and ombudsman disclosure.",
+    "equipment_decommission": "Obsolete hardware server disposal, disk sanitization, and recycling certificate.",
+    "inventory_reconciliation": "Quarterly physical warehouse inventory count and balance adjustment ledger.",
+    "fleet_management": "Corporate transport motor vehicle fleet servicing, telemetry, and fuel card logs.",
+    "shareholder_proxy": "Annual general shareholders voting proxy ballot and executive election statement.",
+    "grant_allocation": "Research and development innovation grant award distribution and budget compliance.",
+    "trademark_infringement": "Intellectual property brand trademark cease-and-desist enforcement letter.",
+    "data_retention_purge": "Scheduled records lifecycle data destruction log and archival compliance audit.",
+    "executive_compensation": "Board compensation committee executive equity vesting schedule and stock option grants.",
+}
+
+VAL_TEMPLATES_V4 = {
+    **VAL_TEMPLATES_V3,
+    "compliance_attestation": "Annual regulatory anti-money laundering compliance certification and risk audit.",
+    "vendor_risk_assessment": "Third-party supply chain cybersecurity posture questionnaire and SOC2 evaluation.",
+    "utility_statement": "Commercial office power electrical utility billing statement and energy rebate.",
+    "visitor_badging": "Corporate campus physical security guest badge issuance and visitor logs.",
+    "customer_onboarding": "Enterprise client KYC identity verification, onboarding packet, and contract portal.",
+}
+
+TEST_TEMPLATES_V4 = {
+    **TEST_TEMPLATES_V3,
+    "insurance_claim_notice": "Commercial property loss indemnity insurance claim filing and adjuster assessment.",
+    "antitrust_compliance": "Trade regulation market competition guidelines and antitrust training acknowledgement.",
+    "offshore_clearing": "Cross-border international trade payments clearing and currency exchange settlement.",
+    "datacenter_colocation": "Server hosting rack colocation lease agreement and bandwidth tier allocation.",
+    "intellectual_licensing": "Proprietary software API patent license royalty calculation and quarterly remittance.",
+}
+
+
+class HardForensicDatasetGeneratorV4(HardForensicDatasetGeneratorV3):
+    """
+    Generator v4 implementing 60 mutually disjoint template families
+    (30 train, 15 val, 15 test), non-zero cue probabilities in opposite classes
+    (resolving Part 4b FP=0 anomaly), and calibrated oracle ceilings.
+    """
+
+    def __init__(
+        self,
+        seed: int = 42,
+        label_noise_rate: float = 0.05,
+        modality_conflict_rate: float = 0.05,
+    ):
+        super().__init__(seed, label_noise_rate, modality_conflict_rate)
+
+    def generate_raw_text(
+        self, true_label: int, template_family: str, p_cue: float = 0.48
+    ) -> str:
+        fam_text = template_family.replace("_", " ").title()
+        r = self.rng.random()
+        if true_label == 1:
+            if r < 0.65:
+                cue = self.rng.choice(SHARED_SUSPICIOUS_INTENT_CUES)
+            elif r < 0.80:
+                cue = self.rng.choice(SHARED_BENIGN_INTENT_CUES)  # 0.15 opposite class cue
+            else:
+                cue = self.rng.choice(SHARED_NEUTRAL_CUES)
+        else:
+            if r < 0.65:
+                cue = self.rng.choice(SHARED_BENIGN_INTENT_CUES)
+            elif r < 0.80:
+                cue = self.rng.choice(SHARED_SUSPICIOUS_INTENT_CUES)  # 0.15 opposite class cue
+            else:
+                cue = self.rng.choice(SHARED_NEUTRAL_CUES)
+
+        ref_id = self.rng.randint(1000, 9999)
+        return f"{cue} Reference: {fam_text} File #{ref_id}."
+
+    def generate_raw_image(
+        self, true_label: int, fam_idx: int, seed: int, p_vis: float = 0.55
+    ) -> Image.Image:
+        rng_img = np.random.RandomState(seed)
+        arr = np.full((128, 128, 3), 235.0, dtype=np.float32)
+        y_pos = (fam_idx % 5) * 15 + 10
+
+        r = rng_img.rand()
+        if r < p_vis:
+            # Active visual tint
+            sub_r = rng_img.rand()
+            if true_label == 1:
+                # 70% reddish, 30% bluish (opposite class)
+                apply_red = (sub_r < 0.70)
+            else:
+                # 70% bluish, 30% reddish (opposite class)
+                apply_red = (sub_r >= 0.70)
+
+            if apply_red:
+                arr[y_pos:y_pos + 25, 20:108, 0] = 175.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 110.0 + rng_img.uniform(-10, 10)
+            else:
+                arr[y_pos:y_pos + 25, 20:108, 0] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 175.0 + rng_img.uniform(-10, 10)
+
+        noise = rng_img.randn(128, 128, 3) * 35.0
+        arr = np.clip(arr + noise, 0.0, 255.0).astype(np.uint8)
+        return Image.fromarray(arr, mode="RGB")
+
+    def generate_raw_metadata(
+        self, true_label: int, text: str, seed: int
+    ) -> Dict[str, Any]:
+        rng_m = random.Random(seed)
+        is_susp_cue = (rng_m.random() < 0.70) if true_label == 1 else (rng_m.random() < 0.30)
+
+        if is_susp_cue:
+            urls = [f"http://192.168.{rng_m.randint(1,250)}.{rng_m.randint(1,250)}/verify"]
+            att = ["invoice_remittance.exe"] if rng_m.random() < 0.4 else ["document.docm"]
+            sender = f"admin{rng_m.randint(10,99)}@spoofed-domain.org"
+            reply_to = f"contact@{rng_m.choice(['external-mail.top', 'secure-lure.buzz'])}"
+            spf = "fail" if rng_m.random() < 0.55 else "pass"
+            dkim = "fail" if rng_m.random() < 0.55 else "pass"
+            disp = "Chief Executive" if rng_m.random() < 0.45 else "IT Support"
+        else:
+            urls = [f"https://portal.internal-corp.net/docs/{rng_m.randint(100, 999)}"]
+            att = ["report_summary.pdf"] if rng_m.random() < 0.8 else ["archive.zip"]
+            sender = f"employee{rng_m.randint(10,99)}@internal-corp.com"
+            reply_to = sender
+            spf = "pass" if rng_m.random() < 0.85 else "fail"
+            dkim = "pass" if rng_m.random() < 0.90 else "fail"
+            disp = "Team Member"
+
+        headers = {
+            "sender": sender,
+            "reply_to": reply_to,
+            "display_name": disp,
+            "headers": {"spf": spf, "dkim": dkim},
+        }
+
+        base_time = datetime(2026, 11, 1, 9, 0, 0) + timedelta(minutes=rng_m.randint(0, 10000))
+        timestamps = [base_time]
+        if is_susp_cue and rng_m.random() < 0.50:
+            timestamps.append(base_time + timedelta(seconds=1))
+            timestamps.append(base_time + timedelta(seconds=2))
+
+        return {
+            "urls": urls,
+            "attachments": att,
+            "email_headers": headers,
+            "event_timestamps": timestamps,
+        }
+
+    def generate_benchmark_partition(
+        self,
+        num_samples: int,
+        split: str,
+    ) -> List[MultimodalCaseItem]:
+        if split == "train":
+            template_bank = TRAIN_TEMPLATES_V4
+            case_prefix = "CASE-TR-V4"
+        elif split == "val":
+            template_bank = VAL_TEMPLATES_V4
+            case_prefix = "VAL-V4"
+        else:
+            template_bank = TEST_TEMPLATES_V4
+            case_prefix = "TEST-V4"
+
+        families = list(template_bank.keys())
+        cases: List[MultimodalCaseItem] = []
+        half = num_samples // 2
+        true_labels = [0] * half + [1] * (num_samples - half)
+        self.rng.shuffle(true_labels)
+
+        for i, true_lbl in enumerate(true_labels):
+            fam_idx = i % len(families)
+            fam = families[fam_idx]
+            case_seed = self.seed * 10000 + i
+
+            text = self.generate_raw_text(true_lbl, fam)
+            img = self.generate_raw_image(true_lbl, fam_idx, case_seed)
+            meta = self.generate_raw_metadata(true_lbl, text, case_seed)
+            heur = self.extract_heuristic_feature_vector(text, meta)
+
+            if split == "train" and self.rng.random() < self.label_noise_rate:
+                obs_label = 1 - true_lbl
+                is_flipped = True
+            else:
+                obs_label = true_lbl
+                is_flipped = False
+
+            text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            img_hash = hashlib.sha256(img.tobytes()).hexdigest()
+            content_hash = hashlib.sha256((text_hash + img_hash).encode("utf-8")).hexdigest()
+
+            meta_record = dict(meta)
+            meta_record["heuristic_features"] = heur
+            meta_record["template_family"] = fam
+            meta_record["true_label"] = int(true_lbl)
+            meta_record["observed_label"] = int(obs_label)
+            meta_record["is_label_flipped"] = bool(is_flipped)
+            meta_record["split"] = split
+
+            item = MultimodalCaseItem(
+                case_id=f"{case_prefix}-{i+1:05d}",
+                text_content=text,
+                text_hash=text_hash,
+                image_content=img,
+                image_hash=img_hash,
+                label=obs_label,
+                metadata=meta_record,
+                content_hash=content_hash,
+            )
+            cases.append(item)
+
+        return cases
+
+
+def generate_hard_benchmark_dataset_v4(
+    config_path: str = "config/benchmark_config.yaml",
+) -> Tuple[List[MultimodalCaseItem], List[MultimodalCaseItem], List[MultimodalCaseItem], Dict[str, Any]]:
+    """
+    Generates the Iteration 9 Hard Benchmark Dataset v4 with 60 template families,
+    strict split isolation, non-zero cross-class cue rates, and write-once manifest.
+    """
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f) if config_path.endswith(".json") else __import__("yaml").safe_load(f)
+
+    seed = cfg["dataset"]["seed"]
+    total = cfg["dataset"]["total_samples"]
+    train_n = int(round(total * cfg["dataset"]["train_ratio"]))
+    val_n = int(round(total * cfg["dataset"]["val_ratio"]))
+    test_n = total - train_n - val_n
+
+    manifest_path = cfg["dataset"].get("manifest_path_v4", "data/split_manifest_hard_v4.json")
+
+    gen = HardForensicDatasetGeneratorV4(
+        seed=seed,
+        label_noise_rate=cfg["generator"]["label_noise_rate"],
+        modality_conflict_rate=cfg["generator"]["modality_conflict_rate"],
+    )
+
+    train_cases = gen.generate_benchmark_partition(train_n, split="train")
+    val_cases = gen.generate_benchmark_partition(val_n, split="val")
+    test_cases = gen.generate_benchmark_partition(test_n, split="test")
+
+    train_fams = set(c.metadata["template_family"] for c in train_cases)
+    val_fams = set(c.metadata["template_family"] for c in val_cases)
+    test_fams = set(c.metadata["template_family"] for c in test_cases)
+
+    # Split isolation assertions
+    assert len(train_fams.intersection(val_fams)) == 0, "Train and Val template families overlap!"
+    assert len(train_fams.intersection(test_fams)) == 0, "Train and Test template families overlap!"
+    assert len(val_fams.intersection(test_fams)) == 0, "Val and Test template families overlap!"
+
+    assert len(train_fams) >= 30, f"Expected >= 30 train families, got {len(train_fams)}"
+    assert len(val_fams) >= 15, f"Expected >= 15 val families, got {len(val_fams)}"
+    assert len(test_fams) >= 15, f"Expected >= 15 test families, got {len(test_fams)}"
+
+    stats = {
+        "version": "hard_v4",
+        "total_cases": total,
+        "train_cases": len(train_cases),
+        "val_cases": len(val_cases),
+        "test_cases": len(test_cases),
+        "train_families": len(train_fams),
+        "val_families": len(val_fams),
+        "test_families": len(test_fams),
+        "train_flipped_count": sum(1 for c in train_cases if c.metadata["is_label_flipped"]),
+        "val_flipped_count": sum(1 for c in val_cases if c.metadata["is_label_flipped"]),
+        "test_flipped_count": sum(1 for c in test_cases if c.metadata["is_label_flipped"]),
+        "seed": seed,
+    }
+
+    manifest_data = {
+        "stats": stats,
+        "train_ids": [c.case_id for c in train_cases],
+        "train_hashes": [c.content_hash for c in train_cases],
+        "val_ids": [c.case_id for c in val_cases],
+        "val_hashes": [c.content_hash for c in val_cases],
+        "test_ids": [c.case_id for c in test_cases],
+        "test_hashes": [c.content_hash for c in test_cases],
+    }
+
+    if os.path.exists(manifest_path):
+        print(f"[*] Manifest '{manifest_path}' already exists (write-once protected).")
+    else:
+        os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2)
+        print(f"[+] Persisted write-once split manifest to '{manifest_path}'.")
+
+    manifest_sha = hashlib.sha256(open(manifest_path, "rb").read()).hexdigest()
+    stats["manifest_sha256"] = manifest_sha
+    print(f"[*] Manifest SHA-256: {manifest_sha}")
+
+    return train_cases, val_cases, test_cases, stats

@@ -12,6 +12,7 @@ dataset:
   manifest_path_v1: "data/split_manifest_hard_v1.json"
   manifest_path: "data/split_manifest_hard_v2.json"
   manifest_path_v3: "data/split_manifest_hard_v3.json"
+  manifest_path_v4: "data/split_manifest_hard_v4.json"
   min_families_per_split:
     train: 4
     val: 2
@@ -20,6 +21,10 @@ dataset:
     train: 20
     val: 10
     test: 10
+  min_families_per_split_v4:
+    train: 30
+    val: 15
+    test: 15
 
 generator:
   single_feature_auc_cap: 0.85      # ASSUMPTION-07: Maximum allowed univariate test AUC for any heuristic or base feature
