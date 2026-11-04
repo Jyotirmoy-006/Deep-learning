@@ -169,3 +169,48 @@ When `SyntheticDataVAE` is instantiated as `SyntheticDataVAE(input_dim=7, latent
 | **Table 5.4: Experiment E 4-Arm Ratio Sweep** | Sweep across ratios $\{0.0, 0.25, 0.50, 1.00\}$ | **VALID** | `part5_vae.5c_ratio_sweep` | Demonstrates performance stability across augmentation ratios. |
 | **Table 6.1: Formal Research Questions (RQ1, RQ2)** | Strict yes/no/inconclusive with 95% CI | **VALID** | `research_questions` | RQ1 (Fusion): `inconclusive` (95% CI $[-0.0002, 0.0041]$); RQ2 (Augmentation): `inconclusive` (95% CI $[0.0000, 0.0100]$). |
 
+---
+
+## 9. Iteration 8 Integrity First, Benchmark v3 & Valid Experiments (`EXECUTION_REPORT_v8.md`)
+
+**Results Artifact:** `results/experiment_results_v8.json` (SHA-256: `786a05cf071944395a1a243c28305202a431b835a6d6a64eb7931bdb96e69d8d`)  
+**Split Manifest:** `data/split_manifest_hard_v3.json` (SHA-256: `a2a569c9354b040dc942096bab2b67bfec3cbee127b4661f9dd6a317031f31b8`)  
+
+| Table Name | Description | Status | JSON Backing Key | Reason & Evidence |
+|---|---|---|---|---|
+| **Table 0.1: Git Diff & Provenance of v5 JSON** | Verification of commit 0bfb4f1 | **VALID** | `part0_disclosure.0a_v5_json_git_diff` | Confirms file was created in single commit and never edited; reconciles exploratory log numbers. |
+| **Table 0.2: Failure Log for Iterations 5, 6, 7** | Comprehensive failure ledger | **VALID** | `part0_disclosure.0b_failure_log_iterations_5_6_7` | Lists all failed launches with task log paths, verbatim errors, causes, and target changed. |
+| **Table 0.3: Pre-Iteration 3 Verification** | Git worktree verification of commit a985ee7 | **VALID** | `part0_disclosure.0c_git_worktree_pre_iter3` | Confirmed 28/28 passed at commit a985ee7; uncommitted edit explanation officially retracted. |
+| **Table 0.4: Pytest Suite Collected Counts** | Test counts across 12 test files | **VALID** | `part0_disclosure.0d_pytest_collected_counts` | Confirms 77 tests collected and 100% passing across the suite. |
+| **Table 1.1: Iteration 7 Seed Invariance Root Cause** | Static array and DataLoader seed diagnosis | **VALID** | `part1_integrity_audit.1a_seed_audit` | Explains how static arrays in v7 caused seed collapse; guarded by Rule G14 weight hashes. |
+| **Table 1.2: Test-Split Access Audit** | CELL_45 Val AUC vs Exp D Test AUC | **VALID** | `part1_integrity_audit.1b_test_access_audit` | Confirms model selection strictly used validation split; test evaluation strictly guarded by Rule G13 SingleUseTestGuard. |
+| **Table 1.3: G12 Confusion Matrix & Sigma_0** | Actual vs balanced test partition null bounds | **VALID** | `part1_integrity_audit.1c_confusion_matrix_and_sigma0` | Derives sigma_0 = 0.033396 for n0=147, n1=153 test partition. |
+| **Table 1.4: Ground-Truth Label Noise Audit** | hard_v1/v2 vs hard_v3 noise comparison | **VALID** | `part1_integrity_audit.1d_noise_audit` | Shows hard_v1 and hard_v2 had 0% noise relative to artifacts; hard_v3 enforces 5.86% true label noise. |
+| **Table 2.N1: N1 i.i.d. Gaussian Null Control** | 100 seeds Gaussian null on hard_v2 | **VALID** | `part2_controls.N1` | Mean 0.501905, Std 0.035048 <= 2*sigma_0 (0.066791). Passed. |
+| **Table 2.N2: N2 Real Frozen Grouped-OOF Null** | 100 seeds frozen OOF features with permuted labels | **VALID** | `part2_controls.N2` | Mean 0.499119, Std 0.034509 <= 2*sigma_0 (0.066791). Passed. |
+| **Table 2.N3: N3 Full Pipeline Null Control** | 100 seeds retrained pipeline on permuted labels | **VALID** | `part2_controls.N3` | Mean 0.502213, Std 0.034185 <= 2*sigma_0 (0.066791). Passed. |
+| **Table 2.N4: N4 Diagnostic Permutation** | Record vs family level permutation | **VALID** | `part2_controls.N4_diagnostic` | Design effect ratio = 1.4339 (n_eff = 207 families). |
+| **Table 2.N5: N5 Positive Control Detection Rates** | Injected cue detection at 0.60 and 0.70 AUC | **VALID** | `part2_controls.N5_positive_control` | 85.0% detection at 0.60, 100.0% detection at 0.70. Passed. |
+| **Table 2.N6: N6 Leak Canaries Sensitivity** | Moved family and duplicated text canaries | **VALID** | `part2_controls.N6_leak_canary` | Both canary 1 and canary 2 successfully flagged. Passed Gate G-CTRL. |
+| **Table 3.1: 40-Family Ontological Taxonomy** | 20 train, 10 val, 10 test family partition | **VALID** | `part3_generator_v3.template_families_count` | 1200 total cases with zero cross-split family or hash overlap. |
+| **Table 3.2: 3-Round Oracle Tuning Log** | Validation split oracle calibration | **VALID** | `part3_generator_v3.tuning_rounds_log` | Fused oracle AUC = 0.9330, margin over best unimodal = +0.0731 >= +0.05. |
+| **Table 3.3: Final Oracle Ceilings & Headroom** | Text (0.8599), Img (0.8215), Heur (0.8142), Fused (0.9330) | **VALID** | `part3_generator_v3.final_oracle_ceilings` | Headroom = 0.0670, Half Headroom cap = 0.0335. |
+| **Table 3.4: MDE Simulation vs Headroom Cap** | Statistical power vs Delta-AUC | **VALID** | `part3_generator_v3.mde_simulation` | MDE = 0.0150 <= 0.0335 cap. Gate G-MDE PASSED. |
+| **Table 4.1: ANN 48-Cell Hyperparameter Grid** | Grid search strictly on validation split | **VALID** | `part4_experiments.4b_ann_grid` | Winner: CELL_20 (RMSprop, Init=xavier, Drop=0.2, BN=True) Val AUC = 0.974200. |
+| **Table 4.2: Canonical Experiments A-E Summary** | 10 seeds mean +/- std across Arms A-E | **VALID** | `part4_experiments.4c_canonical_summary` | Evaluated on hard_v3 test split with distinct weight hashes. |
+| **Table 4.3: Per-Seed Raw Metrics for Exp A-E** | 10 seeds integer confusion matrices and hashes | **VALID** | `part4_experiments.4c_canonical_summary.<arm>.per_seed_runs` | Rule G12 and G14 enforced; recomputed in tests/test_iteration8_integrity.py. |
+| **Table 4.4: Paired Cluster Bootstrap 95% CIs** | Resampling 10 whole families (1000 reps) | **VALID** | `part4_experiments.4c_cluster_ci_table` | Exp C vs Uni: dAUC = +0.094829 [0.062003, 0.136159] (Significant); Exp E vs D: dAUC = +0.000315 [-0.005457, 0.007316] (Inconclusive). |
+| **Table 4.5: Prediction Agreement Matrix** | Pairwise agreement across Arms A-D | **VALID** | `part4_experiments.4d_diagnostics.agreement_matrix` | Unimodal agreement 0.5767; Multimodal to Full 7D agreement 0.8900. |
+| **Table 4.6: Retrained LOFO 7D with Hashes** | Leave-one-feature-out with weight hashes | **VALID** | `part4_experiments.4d_diagnostics.lofo_table` | CNN and BiLSTM show largest drops when omitted. |
+| **Table 4.7: Single-Feature ANN Univariate** | 7 individual feature ANNs | **VALID** | `part4_experiments.4d_diagnostics.single_feature_ann_table` | Text, URL, Heuristics <= 0.85; CNN at 0.8556. |
+| **Table 4.8: Linear and Tree Baselines** | Logistic Regression (0.8872) and GBDT (0.9533) | **VALID** | `part4_experiments.4d_diagnostics.baselines_table` | Benchmark comparisons on full 7D test features. |
+| **Table 4.9: Temperature Scaling Calibration** | Raw vs calibrated Brier and ECE | **VALID** | `part4_experiments.4d_diagnostics.calibration` | Brier 0.0927 -> 0.0912, ECE 0.0720 -> 0.0588. |
+| **Table 4.10: CNN OFAT Parameter Sensitivity** | BatchNorm running stats vs batch stats | **VALID** | `part4_experiments.4e_cnn_ofat` | Running stats AUC = 0.8438, Batch stats AUC = 0.8496. |
+| **Table 4.11: BiLSTM Concat vs Attention** | Pooling comparison across 10 seeds | **VALID** | `part4_experiments.4f_bilstm_pooling` | Concat: 0.8148 +/- 0.0055, Attention: 0.8082 +/- 0.0191. Zero ceiling violations. |
+| **Table 5.1: Two-Sided Criteria for VAE** | Std ratios and Wasserstein per class | **VALID** | `part5_vae.5a_two_sided_criteria` | Quantitative transport metrics on hard_v3. |
+| **Table 5.2: Per-Dimension KL Divergence** | Latent capacity across 4 dims | **VALID** | `part5_vae.5a_per_dim_kl` | All 4 dimensions active (non-collapsed, margin above 0.05 nats). |
+| **Table 5.3: GBDT Real vs Synthetic Discriminator** | 5-fold CV AUC and positive control | **VALID** | `part5_vae.5b_discriminator` | Positive control AUC = 1.0000 > 0.90 confirms discriminator validity. |
+| **Table 5.4: Exp E 4-Arm Ratio Sweep** | Sweep across {0.0, 0.25, 0.50, 1.00} x 10 seeds | **VALID** | `part5_vae.5c_ratio_sweep` | Demonstrates performance stability across VAE, Gaussian, and Interpolation augmenters. |
+| **Table 6.1: Formal Research Questions Ledger** | Final empirical answers for RQ1 and RQ2 | **VALID** | `research_questions` | RQ1 (Fusion): YES (dAUC = +0.094829 [0.062003, 0.136159], MDE=0.0150); RQ2 (Augmentation): INCONCLUSIVE (dAUC = +0.000315 [-0.005457, 0.007316], MDE=0.0150). |
+
+

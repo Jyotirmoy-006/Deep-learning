@@ -611,3 +611,404 @@ def generate_hard_benchmark_dataset(
     print(f"[*] Manifest SHA-256: {manifest_sha}")
 
     return train_cases, val_cases, test_cases, stats
+
+
+# =====================================================================
+# GENERATOR V3: 40-FAMILY GENERALIZABLE BENCHMARK (Iteration 8)
+# =====================================================================
+
+SHARED_SUSPICIOUS_INTENT_CUES = [
+    "URGENT ACTION REQUIRED: Verify security credentials immediately to prevent suspension.",
+    "CRITICAL SECURITY ALERT: Unauthorized session detected. Authenticate now.",
+    "TIME SENSITIVE: Immediate compliance authorization mandated to avoid termination.",
+    "CONFIDENTIAL DIRECTIVE: Access secure verification gateway without delay.",
+    "SECURITY WARNING: Anomalous account activity flagged; complete verification today.",
+    "IMMEDIATE NOTIFICATION: Privileged access review required before close of business.",
+    "ACCOUNT LOCKOUT WARNING: Confirm identity to prevent access revocation.",
+    "MANDATORY REMEDIATION: Critical security update required for your profile.",
+]
+
+SHARED_BENIGN_INTENT_CUES = [
+    "Routine informational update: Please review attached scheduled summary for your records.",
+    "Standard procedure notice: Update provided for your information; no action required.",
+    "Periodic team update: Milestones verified and operating within normal parameters.",
+    "General communication: Thank you for your continued collaboration on this initiative.",
+    "Administrative notice: Quarterly documentation archived per corporate policy.",
+    "Departmental briefing: Project deliverables completed according to schedule.",
+    "Informational memo: Updated operating guidelines published on internal portal.",
+    "Operational summary: Routine system status report for department stakeholders.",
+]
+
+SHARED_NEUTRAL_CUES = [
+    "Please review the attached corporate document at your convenience.",
+    "Operational briefing for team distribution and review.",
+    "Administrative notes regarding scheduled department operations.",
+    "Weekly summary report for internal stakeholders.",
+    "Reference documentation provided for upcoming team review.",
+    "Project status attachment provided for department coordination.",
+]
+
+TRAIN_TEMPLATES_V3 = {
+    "invoice_payment": "Monthly vendor invoice payment processing and remittance verification.",
+    "account_suspension": "Active directory identity credentials lifecycle and access policy.",
+    "urgent_wire": "Corporate treasury bank wire transfer authorization and escrow instructions.",
+    "meeting_reschedule": "Quarterly steering committee conference schedule and agenda synchronization.",
+    "project_status": "Engineering pipeline sprint delivery milestones and technical documentation.",
+    "executive_travel": "Corporate delegation travel itinerary, flight reservations, and accommodations.",
+    "vendor_onboarding": "New supplier registration, W-9 tax documentation, and vendor compliance.",
+    "payroll_discrepancy": "Monthly payroll calculation adjustments and direct deposit account verification.",
+    "tax_compliance": "Annual corporate tax withholding filing and fiscal compliance certification.",
+    "legal_subpoena": "Formal litigation hold notice and confidential document preservation request.",
+    "system_alert": "Data center infrastructure monitoring alert regarding server cluster utilization.",
+    "domain_renewal": "Corporate DNS domain name registration renewal and SSL certificate expiration.",
+    "audit_request": "Internal audit controls sampling and financial records disclosure request.",
+    "quarterly_budget": "Departmental operating expense forecast and capital expenditure allocations.",
+    "facility_maintenance": "Office physical security access badge upgrades and HVAC servicing schedule.",
+    "office_relocation": "Regional headquarters floor plan seating arrangements and asset relocation.",
+    "contract_amendment": "Master services agreement terms amendment and contract execution signature.",
+    "procurement_order": "Enterprise hardware purchase order requisition and warehouse receipt.",
+    "customer_complaint": "Priority client service SLA escalation and dispute resolution summary.",
+    "press_release": "Quarterly financial earnings publication draft and media embargo guidelines.",
+}
+
+VAL_TEMPLATES_V3 = {
+    "it_support_ticket": "Helpdesk technical support ticket resolution and workstation diagnostics.",
+    "hr_benefit_update": "Annual employee healthcare benefit enrollment and retirement contributions.",
+    "cloud_access_request": "Cloud infrastructure IAM role assignment and storage bucket access policy.",
+    "software_license": "Enterprise software license key provisioning and compliance verification.",
+    "data_backup_notice": "Automated nightly database backup snapshot verification and disaster recovery.",
+    "training_seminar": "Mandatory corporate cybersecurity awareness training and ethics module.",
+    "telecom_bill": "Corporate enterprise mobile carrier telecommunications billing statement.",
+    "travel_expense_report": "Business travel reimbursement expense claim and hotel folio review.",
+    "security_incident_report": "SOC security operations incident summary and forensic log triage.",
+    "marketing_campaign": "Product marketing campaign analytics and digital advertising distribution.",
+}
+
+TEST_TEMPLATES_V3 = {
+    "shipping_delivery_notice": "Freight courier shipment delivery tracking and customs clearance notice.",
+    "vpn_credential_update": "Remote access VPN client configuration profile and token rotation.",
+    "conference_invitation": "Academic cybersecurity research symposium keynote speaker invitation.",
+    "patent_filing_notice": "Intellectual property patent application claims and USPTO docketing.",
+    "regulatory_disclosure": "Financial regulatory compliance filing and transparency disclosure.",
+    "board_meeting_agenda": "Board of directors executive meeting agenda and governance packet.",
+    "supply_chain_dispatch": "Logistics supply chain dispatch manifest and freight bill of lading.",
+    "charity_donation_match": "Corporate philanthropic gift matching program and foundation grant.",
+    "health_safety_inspection": "Workplace ergonomic safety inspection and OSHA compliance audit.",
+    "infrastructure_upgrade": "Core network router firmware patch and fiber optic switch migration.",
+}
+
+
+class HardForensicDatasetGeneratorV3:
+    """
+    Generator v3 implementing the 40-family ontology, shared forensic cues,
+    calibrated oracle ceilings in [0.75, 0.90], and true training label noise.
+    """
+
+    def __init__(
+        self,
+        seed: int = 42,
+        label_noise_rate: float = 0.05,
+        modality_conflict_rate: float = 0.05,
+    ):
+        self.seed = seed
+        self.rng = random.Random(seed)
+        self.np_rng = np.random.RandomState(seed)
+        self.label_noise_rate = label_noise_rate
+        self.modality_conflict_rate = modality_conflict_rate
+
+    def generate_raw_text(
+        self, true_label: int, template_family: str, p_cue: float = 0.48
+    ) -> str:
+        """
+        Generates text evidence containing shared forensic intent cues
+        combined with domain-specific family nuisance.
+        """
+        fam_text = template_family.replace("_", " ").title()
+        if self.rng.random() < p_cue:
+            cue = self.rng.choice(SHARED_SUSPICIOUS_INTENT_CUES if true_label == 1 else SHARED_BENIGN_INTENT_CUES)
+        else:
+            cue = self.rng.choice(SHARED_NEUTRAL_CUES)
+
+        ref_id = self.rng.randint(1000, 9999)
+        return f"{cue} Reference: {fam_text} File #{ref_id}."
+
+    def generate_raw_image(
+        self, true_label: int, fam_idx: int, seed: int, p_vis: float = 0.45
+    ) -> Image.Image:
+        """
+        Generates a 128x128 RGB PIL image with subtle visual indicator cues
+        plus controlled sensor noise, calibrated into [0.75, 0.90] oracle AUC.
+        """
+        rng_img = np.random.RandomState(seed)
+        arr = np.full((128, 128, 3), 235.0, dtype=np.float32)
+        y_pos = (fam_idx % 5) * 15 + 10
+
+        if rng_img.rand() < p_vis:
+            if true_label == 1:
+                # Subtle reddish tint
+                arr[y_pos:y_pos + 25, 20:108, 0] = 175.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 110.0 + rng_img.uniform(-10, 10)
+            else:
+                # Subtle bluish tint
+                arr[y_pos:y_pos + 25, 20:108, 0] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 175.0 + rng_img.uniform(-10, 10)
+
+        # Add controlled sensor Gaussian noise
+        noise = rng_img.randn(128, 128, 3) * 35.0
+        arr = np.clip(arr + noise, 0.0, 255.0).astype(np.uint8)
+        return Image.fromarray(arr, mode="RGB")
+
+    def generate_raw_metadata(
+        self, true_label: int, text: str, seed: int
+    ) -> Dict[str, Any]:
+        """
+        Generates metadata headers, attachments, URLs, and timestamps
+        with calibrated signal-to-noise ratios.
+        """
+        rng_m = random.Random(seed)
+        np_m = np.random.RandomState(seed)
+
+        # Signal level for heuristics: beta ~ 0.70
+        is_susp_cue = (true_label == 1 and rng_m.random() < 0.70) or (true_label == 0 and rng_m.random() < 0.25)
+
+        # 1. URL
+        if is_susp_cue:
+            urls = [f"http://192.168.{rng_m.randint(1,250)}.{rng_m.randint(1,250)}/verify"]
+        else:
+            urls = [f"https://portal.internal-corp.net/docs/{rng_m.randint(100, 999)}"]
+
+        # 2. Attachments
+        if is_susp_cue:
+            att = ["invoice_remittance.exe"] if rng_m.random() < 0.4 else ["document.docm"]
+        else:
+            att = ["report_summary.pdf"] if rng_m.random() < 0.8 else ["archive.zip"]
+
+        # 3. Email Headers & Spoofing
+        if is_susp_cue:
+            sender = f"admin{rng_m.randint(10,99)}@spoofed-domain.org"
+            reply_to = f"contact@{rng_m.choice(['external-mail.top', 'secure-lure.buzz'])}"
+            spf = "fail" if rng_m.random() < 0.55 else "pass"
+            dkim = "fail" if rng_m.random() < 0.55 else "pass"
+            disp = "Chief Executive" if rng_m.random() < 0.45 else "IT Support"
+        else:
+            sender = f"employee{rng_m.randint(10,99)}@internal-corp.com"
+            reply_to = sender
+            spf = "pass" if rng_m.random() < 0.85 else "fail"
+            dkim = "pass" if rng_m.random() < 0.90 else "fail"
+            disp = "Team Member"
+
+        headers = {
+            "sender": sender,
+            "reply_to": reply_to,
+            "display_name": disp,
+            "headers": {"spf": spf, "dkim": dkim},
+        }
+
+        # 4. Timestamps
+        base_time = datetime(2026, 11, 1, 9, 0, 0) + timedelta(minutes=rng_m.randint(0, 10000))
+        timestamps = [base_time]
+        if is_susp_cue and rng_m.random() < 0.50:
+            timestamps.append(base_time + timedelta(seconds=1))
+            timestamps.append(base_time + timedelta(seconds=2))
+
+        return {
+            "urls": urls,
+            "attachments": att,
+            "email_headers": headers,
+            "event_timestamps": timestamps,
+        }
+
+    def extract_heuristic_feature_vector(
+        self, text: str, metadata: Dict[str, Any]
+    ) -> List[float]:
+        """Extracts the canonical 5 heuristic features."""
+        u_score = extract_url_score(metadata.get("urls", []))
+        k_score = extract_keyword_score(text)
+        a_score = extract_attachment_score(metadata.get("attachments", []))
+        t_score = extract_timeline_anomaly(metadata.get("event_timestamps", []))
+        e_score = extract_email_anomaly(metadata.get("email_headers", {}))
+        return [round(float(x), 4) for x in [u_score, k_score, a_score, t_score, e_score]]
+
+    def generate_benchmark_partition(
+        self,
+        num_samples: int,
+        split: str,
+    ) -> List[MultimodalCaseItem]:
+        """
+        Generates a benchmark partition from the 40-family ontology.
+        Enforces true label noise on the training split observed label.
+        """
+        if split == "train":
+            template_bank = TRAIN_TEMPLATES_V3
+            case_prefix = "CASE-TR"
+        elif split == "val":
+            template_bank = VAL_TEMPLATES_V3
+            case_prefix = "VAL"
+        else:
+            template_bank = TEST_TEMPLATES_V3
+            case_prefix = "TEST"
+
+        families = list(template_bank.keys())
+        cases: List[MultimodalCaseItem] = []
+        half = num_samples // 2
+        true_labels = [0] * half + [1] * (num_samples - half)
+        self.rng.shuffle(true_labels)
+
+        for i, true_lbl in enumerate(true_labels):
+            fam_idx = i % len(families)
+            fam = families[fam_idx]
+            case_seed = self.seed * 10000 + i
+
+            # Render raw artifacts from true label
+            text = self.generate_raw_text(true_lbl, fam)
+            img = self.generate_raw_image(true_lbl, fam_idx, case_seed)
+            meta = self.generate_raw_metadata(true_lbl, text, case_seed)
+            heur = self.extract_heuristic_feature_vector(text, meta)
+
+            # Apply true label noise to training split observed label
+            if split == "train" and self.rng.random() < self.label_noise_rate:
+                obs_label = 1 - true_lbl
+                is_flipped = True
+            else:
+                obs_label = true_lbl
+                is_flipped = False
+
+            text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            img_hash = hashlib.sha256(img.tobytes()).hexdigest()
+            content_hash = hashlib.sha256((text_hash + img_hash).encode("utf-8")).hexdigest()
+
+            meta_record = dict(meta)
+            meta_record["heuristic_features"] = heur
+            meta_record["template_family"] = fam
+            meta_record["true_label"] = int(true_lbl)
+            meta_record["observed_label"] = int(obs_label)
+            meta_record["is_label_flipped"] = bool(is_flipped)
+            meta_record["split"] = split
+
+            item = MultimodalCaseItem(
+                case_id=f"{case_prefix}-{i+1:05d}",
+                text_content=text,
+                text_hash=text_hash,
+                image_content=img,
+                image_hash=img_hash,
+                label=obs_label,
+                metadata=meta_record,
+                content_hash=content_hash,
+            )
+            cases.append(item)
+
+        return cases
+
+
+def generate_hard_benchmark_dataset_v3(
+    config_path: str = "config/benchmark_config.yaml",
+) -> Tuple[
+    List[MultimodalCaseItem],
+    List[MultimodalCaseItem],
+    List[MultimodalCaseItem],
+    Dict[str, Any],
+]:
+    """
+    Generates and persists the official hard-synthetic benchmark v3 dataset.
+    700 train, 200 val, 300 test across 40 disjoint template families.
+    Enforces write-once manifest at data/split_manifest_hard_v3.json.
+    """
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f) if config_path.endswith(".json") else __import__("yaml").safe_load(f)
+
+    seed = cfg["dataset"]["seed"]
+    manifest_path = cfg["dataset"].get("manifest_path_v3", "data/split_manifest_hard_v3.json")
+    train_n = int(round(cfg["dataset"]["total_samples"] * cfg["dataset"]["train_ratio"]))
+    val_n = int(round(cfg["dataset"]["total_samples"] * cfg["dataset"]["val_ratio"]))
+    test_n = cfg["dataset"]["total_samples"] - train_n - val_n
+
+    generator = HardForensicDatasetGeneratorV3(
+        seed=seed,
+        label_noise_rate=cfg["generator"]["label_noise_rate"],
+        modality_conflict_rate=cfg["generator"]["modality_conflict_rate"],
+    )
+
+    print(f"[*] Generating Hard-Synthetic Benchmark v3 (Train={train_n}, Val={val_n}, Test={test_n})...")
+    train_cases = generator.generate_benchmark_partition(train_n, split="train")
+    val_cases = generator.generate_benchmark_partition(val_n, split="val")
+    test_cases = generator.generate_benchmark_partition(test_n, split="test")
+
+    # Verify zero leakage across splits
+    tr_hashes = {c.content_hash for c in train_cases}
+    va_hashes = {c.content_hash for c in val_cases}
+    te_hashes = {c.content_hash for c in test_cases}
+    assert len(tr_hashes.intersection(va_hashes)) == 0, "Hash leakage between train and val"
+    assert len(tr_hashes.intersection(te_hashes)) == 0, "Hash leakage between train and test"
+    assert len(va_hashes.intersection(te_hashes)) == 0, "Hash leakage between val and test"
+
+    tr_fams = {c.metadata["template_family"] for c in train_cases}
+    va_fams = {c.metadata["template_family"] for c in val_cases}
+    te_fams = {c.metadata["template_family"] for c in test_cases}
+    assert len(tr_fams.intersection(va_fams)) == 0, "Family leakage between train and val"
+    assert len(tr_fams.intersection(te_fams)) == 0, "Family leakage between train and test"
+    assert len(va_fams.intersection(te_fams)) == 0, "Family leakage between val and test"
+
+    assert len(tr_fams) == 20, f"Expected 20 train families, got {len(tr_fams)}"
+    assert len(va_fams) == 10, f"Expected 10 val families, got {len(va_fams)}"
+    assert len(te_fams) == 10, f"Expected 10 test families, got {len(te_fams)}"
+
+    tr_flipped = sum(1 for c in train_cases if c.metadata["is_label_flipped"])
+    stats = {
+        "seed": seed,
+        "splits": {
+            "train": {
+                "total": len(train_cases),
+                "families_count": len(tr_fams),
+                "class_0_benign": sum(1 for c in train_cases if c.label == 0),
+                "class_1_suspicious": sum(1 for c in train_cases if c.label == 1),
+                "true_class_0": sum(1 for c in train_cases if c.metadata["true_label"] == 0),
+                "true_class_1": sum(1 for c in train_cases if c.metadata["true_label"] == 1),
+                "flipped_labels_count": tr_flipped,
+                "flipped_fraction": float(tr_flipped / len(train_cases)),
+            },
+            "val": {
+                "total": len(val_cases),
+                "families_count": len(va_fams),
+                "class_0_benign": sum(1 for c in val_cases if c.label == 0),
+                "class_1_suspicious": sum(1 for c in val_cases if c.label == 1),
+                "flipped_labels_count": 0,
+                "flipped_fraction": 0.0,
+            },
+            "test": {
+                "total": len(test_cases),
+                "families_count": len(te_fams),
+                "class_0_benign": sum(1 for c in test_cases if c.label == 0),
+                "class_1_suspicious": sum(1 for c in test_cases if c.label == 1),
+                "flipped_labels_count": 0,
+                "flipped_fraction": 0.0,
+            },
+        },
+        "config": cfg,
+    }
+
+    manifest_data = {
+        "stats": stats,
+        "train_ids": [c.case_id for c in train_cases],
+        "train_hashes": [c.content_hash for c in train_cases],
+        "val_ids": [c.case_id for c in val_cases],
+        "val_hashes": [c.content_hash for c in val_cases],
+        "test_ids": [c.case_id for c in test_cases],
+        "test_hashes": [c.content_hash for c in test_cases],
+    }
+
+    # Write-once manifest protection
+    if os.path.exists(manifest_path):
+        print(f"[*] Manifest '{manifest_path}' already exists (write-once protected).")
+    else:
+        os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2)
+        print(f"[+] Persisted write-once split manifest to '{manifest_path}'.")
+
+    manifest_sha = hashlib.sha256(open(manifest_path, "rb").read()).hexdigest()
+    stats["manifest_sha256"] = manifest_sha
+    print(f"[*] Manifest SHA-256: {manifest_sha}")
+
+    return train_cases, val_cases, test_cases, stats
