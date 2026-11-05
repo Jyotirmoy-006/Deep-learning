@@ -147,11 +147,12 @@ def compute_summary_row_from_seed_runs(
 def find_optimal_threshold(
     y_true: Union[np.ndarray, list],
     y_probs: Union[np.ndarray, list],
-    metric: str = "f1",
+    metric: str = "balanced_accuracy",
 ) -> float:
     """
-    Rule G18: Tunes threshold strictly on validation split per arm per seed.
-    Returns optimal threshold maximizing F1 score (or accuracy).
+    Rule G18 & G23: Tunes threshold strictly on validation split per arm per seed.
+    Selects optimal threshold maximizing balanced accuracy (or F1 score).
+    Balanced accuracy = (TPR + TNR) / 2 = 0.5 * (TP / (TP + FN) + TN / (TN + FP)).
     """
     y_t = np.asarray(y_true).astype(int).ravel()
     y_p = np.asarray(y_probs).astype(float).ravel()
@@ -165,8 +166,15 @@ def find_optimal_threshold(
         tp = np.sum((y_t == 1) & (bin_pred == 1))
         fp = np.sum((y_t == 0) & (bin_pred == 1))
         fn = np.sum((y_t == 1) & (bin_pred == 0))
-        denom = 2.0 * tp + fp + fn
-        score = (2.0 * tp / denom) if denom > 0 else 0.0
+        tn = np.sum((y_t == 0) & (bin_pred == 0))
+
+        if metric == "balanced_accuracy":
+            tpr = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            tnr = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+            score = 0.5 * (tpr + tnr)
+        else:
+            denom = 2.0 * tp + fp + fn
+            score = (2.0 * tp / denom) if denom > 0 else 0.0
 
         if score > best_score:
             best_score = score

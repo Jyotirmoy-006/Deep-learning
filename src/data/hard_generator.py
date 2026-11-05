@@ -1090,7 +1090,7 @@ class HardForensicDatasetGeneratorV4(HardForensicDatasetGeneratorV3):
         return f"{cue} Reference: {fam_text} File #{ref_id}."
 
     def generate_raw_image(
-        self, true_label: int, fam_idx: int, seed: int, p_vis: float = 0.55
+        self, true_label: int, fam_idx: int, seed: int, p_vis: float = 0.75
     ) -> Image.Image:
         rng_img = np.random.RandomState(seed)
         arr = np.full((128, 128, 3), 235.0, dtype=np.float32)
@@ -1098,25 +1098,25 @@ class HardForensicDatasetGeneratorV4(HardForensicDatasetGeneratorV3):
 
         r = rng_img.rand()
         if r < p_vis:
-            # Active visual tint
+            # Active visual tint (calibrated for Gate G21 base-model competence)
             sub_r = rng_img.rand()
             if true_label == 1:
-                # 70% reddish, 30% bluish (opposite class)
-                apply_red = (sub_r < 0.70)
+                # 80% reddish, 20% bluish (opposite class)
+                apply_red = (sub_r < 0.80)
             else:
-                # 70% bluish, 30% reddish (opposite class)
-                apply_red = (sub_r >= 0.70)
+                # 80% bluish, 20% reddish (opposite class)
+                apply_red = (sub_r >= 0.80)
 
             if apply_red:
-                arr[y_pos:y_pos + 25, 20:108, 0] = 175.0 + rng_img.uniform(-10, 10)
-                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
-                arr[y_pos:y_pos + 25, 20:108, 2] = 110.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 0] = 185.0 + rng_img.uniform(-5, 5)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 100.0 + rng_img.uniform(-5, 5)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 100.0 + rng_img.uniform(-5, 5)
             else:
-                arr[y_pos:y_pos + 25, 20:108, 0] = 110.0 + rng_img.uniform(-10, 10)
-                arr[y_pos:y_pos + 25, 20:108, 1] = 110.0 + rng_img.uniform(-10, 10)
-                arr[y_pos:y_pos + 25, 20:108, 2] = 175.0 + rng_img.uniform(-10, 10)
+                arr[y_pos:y_pos + 25, 20:108, 0] = 100.0 + rng_img.uniform(-5, 5)
+                arr[y_pos:y_pos + 25, 20:108, 1] = 100.0 + rng_img.uniform(-5, 5)
+                arr[y_pos:y_pos + 25, 20:108, 2] = 185.0 + rng_img.uniform(-5, 5)
 
-        noise = rng_img.randn(128, 128, 3) * 35.0
+        noise = rng_img.randn(128, 128, 3) * 10.0
         arr = np.clip(arr + noise, 0.0, 255.0).astype(np.uint8)
         return Image.fromarray(arr, mode="RGB")
 

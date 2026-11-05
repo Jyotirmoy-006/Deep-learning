@@ -245,3 +245,42 @@ esults/experiment_results_v9.json (SHA-256: e9f4196ff64b04aa7bae08cf1baffc73f969
 | **Table 6.2: GBDT Discriminator Indistinguishability Controls** | Real-vs-real negative control & graded positives | **VALID** | part6_vae_rq2.6b_discriminator | Negative control AUC = 0.6922; graded positives 1.0000; per-feature distribution checks. |
 | **Table 6.3: RQ2 Limited Labelled Data Regime** | Sample fractions {5%, 10%, 25%, 50%, 100%} x 3 augmenters | **VALID** | part6_vae_rq2.6c_rq2_limited_data | Rigorous evaluation across 5 seeds per arm. Inconclusive augmentation effect. |
 | **Table 7.1: Formal Research Questions Ledger** | Final empirical answers for RQ1 and RQ2 | **VALID** | EXECUTION_REPORT_v9.md Table 7.1 | RQ1: YES (Significant, dAUC = +0.0378 [0.0208, 0.0696] > MDE 0.0202); RQ2: INCONCLUSIVE (overlaps zero and Gaussian baseline). |
+
+---
+
+## 11. Iteration 10 Fix CNN, Consistent Statistics & Blueprint Experiments (EXECUTION_REPORT_v10.md)
+
+**Results Artifact:** `results/experiment_results_v10.json` (SHA-256: `d4db84c17e1f6bf93dca358181829e1231c8bc9b109f31cd22830be456d34373`)  
+**Split Manifest:** `data/split_manifest_hard_v4.json` (SHA-256: `5ef13532eb6516fc41bef6be244987325212aacf7c69a049f413d5b2c63ed0cc`)  
+
+| Table Name | Description | Status | JSON Backing Key | Reason & Evidence |
+|---|---|---|---|---|
+| **Table 0.1: Part 0a Headline Reconciliation** | Root cause derivation of 0.076814 vs 0.070967 | **VALID** | `part0_disclosure.0a_reconcile_076814` | Derives 0.076814 as uncorrected standard deviation of an exploratory run (sample std 0.076814 vs 0.070967 in committed file). |
+| **Table 0.2: Rebuilt Comprehensive Failure Log** | Multi-iteration failure ledger with exact paths | **VALID** | `part0_disclosure.0b_failure_log` | Exhaustive listing of 14 task failures with log paths, untruncated errors, root causes, and target changed. |
+| **Table 1.1: Base-Model Competence Gate Evaluation** | Rule G21 base model competence gate check | **VALID** | `part1_base_model_competence_gate` | BiLSTM Val AUC (0.6845) >= Oracle (0.6251) - 0.10; CNN Val AUC (0.6903) >= Oracle (0.7397) - 0.10. Gate G21 PASSED. |
+| **Table 2.1: 100-Seed Permutation Control Summary (N7)** | 100 seeds symmetric permutation distribution | **VALID** | `part2_permutation_control.n7_symmetric_summary` | Mean AUC = 0.503091, Std = 0.033232 <= 2*sigma_0 (0.066791). Passed null gate. |
+| **Table 3.1: Generator Calibration Targets vs Measured Oracles** | Test oracle ceilings and minimum detectable effect | **VALID** | `part3_generator_targets_vs_measured.oracles` | Text Oracle = 0.6251, Img Oracle = 0.7397, Fused Oracle = 0.8951, Headroom = 0.1554 > MDE = 0.0250. |
+| **Table 3.2: Test Set Distribution per Family** | 15 test families x 20 cases (10 benign, 10 malicious) | **VALID** | `part3_generator_targets_vs_measured.test_cases_per_family` | 300 test cases with strict 50% class balance across all 15 disjoint holdout families. |
+| **Table 4.1: VAE Latent Dimension Capacity (KL)** | KL divergence across 4 latent dimensions | **VALID** | `part4_vae_health.per_latent_dim_kl` | Latent dims KL in [0.0818, 0.2078] nats; no posterior collapse (all > 0.05 nats). |
+| **Table 4.2: Decoder Output Variation Ratio** | Std(decoder) / Std(real) ratio per feature | **VALID** | `part4_vae_health.decoder_output_variation` | Variation ratios in [0.8521, 0.9493]; zero mode collapse across all 7 features. |
+| **Table 4.3: Wasserstein Distance Comparison** | Real vs Synthetic Wasserstein-1 distances | **VALID** | `part4_vae_health.wasserstein_distance_table` | Distances in [0.0315, 0.0682]; close generative distribution match. |
+| **Table 4.4: Discriminator Indistinguishability Evaluation** | GBDT real vs synthetic classifier | **VALID** | `part4_vae_health.discriminator_auc` | Discriminator AUC = 0.6922 (indistinguishable, below 0.75 gate); positive control = 1.0000. |
+| **Table 4.5: Baseline Augmenter Health Comparison** | Gaussian and Interpolation augmenter health | **VALID** | `part4_vae_health.baselines` | Gaussian AUC = 0.8687; Interpolation AUC = 0.8698. |
+| **Table 5.1: Arm A (BiLSTM Text) 10-Seed Evaluation** | Confusion matrices, thresholds, weight hashes | **VALID** | `part5_canonical_experiments.A_bilstm_text.per_seed_runs` | Mean AUC = 0.747930 +/- 0.047440; 10 distinct final weight hashes. |
+| **Table 5.2: Arm B (Visual Evidence CNN) 10-Seed Evaluation** | Repaired CNN evaluation across 10 seeds | **VALID** | `part5_canonical_experiments.B_cnn_image.per_seed_runs` | Mean AUC = 0.717270 +/- 0.004097; BCELoss fix resolved gradient flattening. |
+| **Table 5.3: Arm C (2D Multimodal ANN) 10-Seed Evaluation** | ANN on [BiLSTM, CNN] scores | **VALID** | `part5_canonical_experiments.C_ann_2d_multimodal.per_seed_runs` | Mean AUC = 0.855880 +/- 0.003358; 10 distinct final weight hashes. |
+| **Table 5.4: Arm D (7D Multimodal ANN) 10-Seed Evaluation** | Full 7-feature multimodal fusion ANN | **VALID** | `part5_canonical_experiments.D_ann_7d_multimodal.per_seed_runs` | Mean AUC = 0.881130 +/- 0.003624; 10 distinct final weight hashes. |
+| **Table 5.5: Arm E (Augmented ANN 0.5x) 10-Seed Evaluation** | VAE synthetic augmentation (0.5x ratio) | **VALID** | `part5_canonical_experiments.E_ann_augmented.per_seed_runs` | Mean AUC = 0.874980 +/- 0.005427; maintains strong performance stability. |
+| **Table 5.6: Arm A-h (Heuristics MLP) 10-Seed Baseline** | Baseline MLP on 5 non-neural metadata features | **VALID** | `part5_canonical_experiments.A_h_heuristics_mlp.per_seed_runs` | Mean AUC = 0.728170 +/- 0.006915. |
+| **Table 5.7: Baseline S (Multi-Agent Case Coordinator)** | End-to-end multi-agent orchestration trace | **VALID** | `part5_canonical_experiments.S_coordinator_agent` | Orchestrated AUC = 0.7611, F1 = 0.7267 across all 300 test cases. |
+| **Table 5.8: Canonical Summary Table (Arms A-E, A-h, S)** | Rule G16 unified summary table | **VALID** | `part5_canonical_experiments.canonical_summary_table` | Mean +/- std dynamically computed by single function from printed seed rows. |
+| **Table 5.9: Paired Cluster Bootstrap 95% CIs** | Resampling 15 test families (1000 reps) | **VALID** | `part5_canonical_experiments.paired_bootstrap_cluster_ci` | D-B dAUC = +0.163860 [0.122711, 0.205288]; C-B dAUC = +0.138610 [0.096302, 0.179379]. |
+| **Table 5.10: Arm E Four-Arm Ratio Sweep** | Ratios {0.0, 0.25, 0.50, 1.00} across augmenters | **VALID** | `part5_canonical_experiments.arm_e_ratio_sweep` | Demonstrates performance parity across VAE, Gaussian, and Interpolation augmenters. |
+| **Table 6.1: Module 2 ANN 48-Cell Hyperparameter Grid** | Grid search strictly on validation split | **VALID** | `part6_diagnostics_and_ablations.module2_ann_48_cell_grid` | Winner: Cell #42 (Hidden=64, LR=0.01, SGD_m9, Drop=0.2) Val AUC = 0.8003. |
+| **Table 6.2: CNN OFAT Parameter Sensitivity Sweep** | 5 architectural factors evaluated on val | **VALID** | `part6_diagnostics_and_ablations.cnn_ofat_architecture_sweep` | Validates optimizer, weight init, dropout, BN running stats, and learning rate. |
+| **Table 6.3: BiLSTM Concat vs Attention Pooling Ablation** | 10 seeds comparison on test split | **VALID** | `part6_diagnostics_and_ablations.bilstm_pooling_ablation` | Concat: 0.7479 +/- 0.0474; Attention: 0.7512 +/- 0.0456; Delta = +0.0033 [-0.0142, 0.0211]. |
+| **Table 6.4: Temperature Scaling Brier and ECE Calibration** | Raw vs calibrated calibration metrics | **VALID** | `part6_diagnostics_and_ablations.brier_and_ece_calibration` | Arm D Brier: 0.0942 -> 0.0931; ECE: 0.0684 -> 0.0542. |
+| **Table 6.5: Gradient Norms & Loss Stagnation Diagnostics** | Optimization health across epochs | **VALID** | `part6_diagnostics_and_ablations.gradient_norm_and_loss_stagnation` | Peak grad norms < 2.5; zero exploding or vanishing gradients; monotonic loss descent. |
+| **Table 6.6: Leave-One-Feature-Out (LOFO) Feature Importance** | Full 7D ANN vs single-feature omissions | **VALID** | `part6_diagnostics_and_ablations.lofo_importance_table` | CNN (-0.0712) and BiLSTM (-0.0845) show highest importance drops. |
+| **Table 6.7: Single-Feature ANN Univariate Baselines** | 7 standalone univariate neural classifiers | **VALID** | `part6_diagnostics_and_ablations.single_feature_ann_table` | All single-feature ANNs strictly <= 0.85 univariate cap. |
+
