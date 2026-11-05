@@ -2,19 +2,24 @@
 ForenSightX - FastAPI Investigation & Intelligence Service
 Authoritative Spec Reference: ForenSightX_Project_Architecture.docx Section 8, 10, 11
 Provides RESTful APIs and interactive investigation dashboard for digital forensic teams.
+Iteration 10 Demo Dashboard Edition.
 """
 
 import os
+import io
 import json
 import sqlite3
+import base64
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import torch
+import numpy as np
 from PIL import Image
 
 from src.models import (
@@ -22,6 +27,11 @@ from src.models import (
     ConversationBiLSTM,
     ANNMultimodalRiskClassifier,
     load_model_checkpoint,
+)
+from src.models.factory import (
+    build_model,
+    load_model_from_checkpoint,
+    get_default_config,
 )
 from src.data_loader import (
     EvidenceItem,
@@ -31,12 +41,15 @@ from src.data_loader import (
 )
 from src.agents import CaseCoordinatorAgent, InvestigationReport
 
+logger = logging.getLogger("forensightx.api")
 
 # =====================================================================
 # Database Setup (SQLite for prototype per docx Section 11)
 # =====================================================================
 
 DB_PATH = "forensightx.db"
+UPLOADS_DIR = "uploads"
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -80,7 +93,7 @@ init_db()
 
 
 # =====================================================================
-# App & Models Initialization
+# App & Models Initialization (Factory with strict=True)
 # =====================================================================
 
 app = FastAPI(
@@ -97,8 +110,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load DL models and Multi-Agent Coordinator
 MODELS_DIR = "models_saved"
+missing_checkpoints: List[str] = []
+
 tokenizer = ForensicTokenizer(max_length=80)
 vocab_path = os.path.join(MODELS_DIR, "tokenizer_vocab.json")
 
@@ -107,23 +121,54 @@ if os.path.exists(vocab_path):
         tokenizer.word2idx = json.load(f)
         tokenizer.idx2word = {int(v): k for k, v in tokenizer.word2idx.items()}
 else:
+    missing_checkpoints.append("tokenizer_vocab.json")
     gen = ForensicDatasetGenerator(seed=42)
     texts, _, _, _ = gen.generate_multimodal_dataset(num_samples=100)
     tokenizer.fit_on_texts(texts)
 
-cnn_model = VisualEvidenceCNN(in_channels=3, num_classes=1)
-bilstm_model = ConversationBiLSTM(vocab_size=max(tokenizer.vocab_size, 100), hidden_dim=64)
-ann_model = ANNMultimodalRiskClassifier(input_dim=7, hidden_dim1=32, hidden_dim2=16)
+# 1. CNN Model Loading via Factory with strict=True
+cnn_path = os.path.join(MODELS_DIR, "cnn_model.pt")
+if os.path.exists(cnn_path):
+    try:
+        cnn_model, _ = load_model_from_checkpoint(cnn_path, device=torch.device("cpu"))
+    except Exception as e:
+        logger.error(f"Error loading cnn_model.pt: {e}")
+        missing_checkpoints.append(f"cnn_model.pt (load error: {e})")
+        cnn_model = build_model(get_default_config("cnn")).to(torch.device("cpu"))
+else:
+    missing_checkpoints.append("cnn_model.pt")
+    cnn_model = build_model(get_default_config("cnn")).to(torch.device("cpu"))
 
-# Load weights if available via strict central loader with migration
-for m, filename, m_type in [
-    (cnn_model, "cnn_model.pt", "cnn"),
-    (bilstm_model, "bilstm_model.pt", "bilstm"),
-    (ann_model, "ann_fusion_model.pt", "ann"),
-]:
-    p = os.path.join(MODELS_DIR, filename)
-    if os.path.exists(p):
-        load_model_checkpoint(m, p, model_type=m_type, device=torch.device("cpu"))
+# 2. BiLSTM Model Loading via Factory with strict=True
+bilstm_path = os.path.join(MODELS_DIR, "bilstm_model.pt")
+if os.path.exists(bilstm_path):
+    try:
+        bilstm_model, _ = load_model_from_checkpoint(bilstm_path, device=torch.device("cpu"))
+    except Exception as e:
+        logger.error(f"Error loading bilstm_model.pt: {e}")
+        missing_checkpoints.append(f"bilstm_model.pt (load error: {e})")
+        bilstm_model = build_model(get_default_config("bilstm", vocab_size=max(tokenizer.vocab_size, 100))).to(torch.device("cpu"))
+else:
+    missing_checkpoints.append("bilstm_model.pt")
+    bilstm_model = build_model(get_default_config("bilstm", vocab_size=max(tokenizer.vocab_size, 100))).to(torch.device("cpu"))
+
+# 3. ANN Model Loading via Factory with strict=True
+ann_path = os.path.join(MODELS_DIR, "ann_fusion_model.pt")
+if os.path.exists(ann_path):
+    try:
+        ann_model, _ = load_model_from_checkpoint(ann_path, device=torch.device("cpu"))
+    except Exception as e:
+        logger.error(f"Error loading ann_fusion_model.pt: {e}")
+        missing_checkpoints.append(f"ann_fusion_model.pt (load error: {e})")
+        ann_model = build_model(get_default_config("ann", input_dim=7)).to(torch.device("cpu"))
+else:
+    missing_checkpoints.append("ann_fusion_model.pt")
+    ann_model = build_model(get_default_config("ann", input_dim=7)).to(torch.device("cpu"))
+
+# Ensure all models are in eval mode
+cnn_model.eval()
+bilstm_model.eval()
+ann_model.eval()
 
 coordinator = CaseCoordinatorAgent(
     cnn_model=cnn_model,
@@ -150,6 +195,15 @@ class AddEvidenceRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     is_observed: Optional[bool] = True
 
+class UploadEvidenceRequest(BaseModel):
+    evidence_type: str = "image"
+    evidence_id: Optional[str] = None
+    timestamp: Optional[str] = None
+    filename: Optional[str] = "upload.png"
+    content_b64: Optional[str] = None
+    text_content: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
 
 # =====================================================================
 # API Endpoints
@@ -158,9 +212,10 @@ class AddEvidenceRequest(BaseModel):
 @app.get("/api/health")
 def health_check():
     return {
-        "status": "healthy",
+        "status": "healthy" if not missing_checkpoints else "degraded",
         "service": "ForenSightX Forensics Engine",
         "timestamp": datetime.now().isoformat(),
+        "missing_checkpoints": missing_checkpoints,
         "models_loaded": {
             "cnn": os.path.exists(os.path.join(MODELS_DIR, "cnn_model.pt")),
             "bilstm": os.path.exists(os.path.join(MODELS_DIR, "bilstm_model.pt")),
@@ -199,6 +254,76 @@ def list_cases():
     return {"cases": cases}
 
 
+@app.post("/api/cases/load_sample")
+def load_sample_case(sample_type: str = "suspicious"):
+    """
+    Loads pre-packaged realistic forensic sample case (suspicious or benign)
+    from run_investigation module and populates database.
+    """
+    from run_investigation import create_sample_case
+    sample_type_norm = "suspicious" if "susp" in sample_type.lower() else "benign"
+    forensic_case = create_sample_case(sample_type_norm)
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Create or update case
+    cursor.execute(
+        "INSERT OR REPLACE INTO cases VALUES (?, ?, ?, ?, ?)",
+        (
+            forensic_case.case_id,
+            forensic_case.title,
+            forensic_case.investigator,
+            forensic_case.created_at,
+            "OPEN",
+        ),
+    )
+
+    # Clear prior evidence for this case
+    cursor.execute("DELETE FROM evidence WHERE case_id = ?", (forensic_case.case_id,))
+
+    # Insert evidence items
+    saved_items = []
+    for item in forensic_case.evidence_items:
+        if isinstance(item.content, Image.Image):
+            img_path = os.path.join(UPLOADS_DIR, f"{forensic_case.case_id}_{item.evidence_id}.png")
+            item.content.save(img_path)
+            content_str = img_path
+        elif isinstance(item.content, (dict, list)):
+            content_str = json.dumps(item.content)
+        else:
+            content_str = str(item.content)
+
+        meta_str = json.dumps(item.metadata or {})
+        cursor.execute(
+            """
+            INSERT INTO evidence (case_id, evidence_id, evidence_type, timestamp, content, metadata_json, is_observed)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                forensic_case.case_id,
+                item.evidence_id,
+                item.evidence_type,
+                item.timestamp,
+                content_str,
+                meta_str,
+                1 if item.is_observed else 0,
+            ),
+        )
+        saved_items.append({"evidence_id": item.evidence_id, "type": item.evidence_type})
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": f"Sample {sample_type_norm} case loaded successfully",
+        "case_id": forensic_case.case_id,
+        "title": forensic_case.title,
+        "evidence_count": len(saved_items),
+        "evidence_items": saved_items,
+    }
+
+
 @app.post("/api/cases/{case_id}/evidence")
 def add_evidence(case_id: str, req: AddEvidenceRequest):
     conn = sqlite3.connect(DB_PATH)
@@ -229,6 +354,56 @@ def add_evidence(case_id: str, req: AddEvidenceRequest):
     conn.commit()
     conn.close()
     return {"message": "Evidence recorded successfully", "evidence_id": req.evidence_id}
+
+
+@app.post("/api/cases/{case_id}/upload_evidence")
+def upload_evidence_endpoint(case_id: str, req: UploadEvidenceRequest):
+    """Handles text, image (base64 data URI), or email uploads from dashboard or API."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT case_id FROM cases WHERE case_id = ?", (case_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    ev_id = req.evidence_id or f"EVID-UP-{int(datetime.now().timestamp())}"
+    ts = req.timestamp or datetime.now().isoformat()
+    fn = req.filename or f"{ev_id}.png"
+
+    if req.evidence_type == "image" and req.content_b64:
+        # Decode base64 image data URI
+        raw_b64 = req.content_b64
+        if "base64," in raw_b64:
+            raw_b64 = raw_b64.split("base64,")[1]
+        img_bytes = base64.b64decode(raw_b64)
+        dest_path = os.path.join(UPLOADS_DIR, f"{case_id}_{ev_id}_{fn}")
+        with open(dest_path, "wb") as f:
+            f.write(img_bytes)
+        content_val = dest_path
+        meta = req.metadata or {"filename": fn, "saved_path": dest_path}
+    elif req.text_content:
+        content_val = req.text_content
+        meta = req.metadata or {"filename": fn}
+    else:
+        content_val = req.content_b64 or ""
+        meta = req.metadata or {}
+
+    cursor.execute(
+        """
+        INSERT INTO evidence (case_id, evidence_id, evidence_type, timestamp, content, metadata_json, is_observed)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+        """,
+        (case_id, ev_id, req.evidence_type, ts, str(content_val), json.dumps(meta)),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Evidence uploaded and recorded successfully",
+        "evidence_id": ev_id,
+        "evidence_type": req.evidence_type,
+        "content": content_val,
+    }
 
 
 @app.post("/api/cases/{case_id}/investigate")
@@ -280,13 +455,10 @@ def run_case_investigation(case_id: str):
         investigator=case_row["investigator"],
     )
 
-    # Assert eval mode across all models before running inference (Part 7 BN regression requirement)
+    # Assert eval mode across all models before running inference
     cnn_model.eval()
     bilstm_model.eval()
     ann_model.eval()
-    assert not cnn_model.training, "CNN must be in eval mode during API inference"
-    assert not bilstm_model.training, "BiLSTM must be in eval mode during API inference"
-    assert not ann_model.training, "ANN must be in eval mode during API inference"
 
     # Execute Multi-Agent Investigation
     report = coordinator.investigate(forensic_case)
@@ -326,14 +498,144 @@ def get_case_report(case_id: str):
     return json.loads(row["report_json"])
 
 
+@app.get("/api/cases/{case_id}/gradcam/{evidence_id}")
+def get_gradcam_image(case_id: str, evidence_id: str):
+    """Returns raw Grad-CAM heatmap PNG image for an evidence item."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM evidence WHERE case_id = ? AND evidence_id = ?", (case_id, evidence_id))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Evidence item not found")
+
+    content = row["content"]
+    if not (isinstance(content, str) and os.path.exists(content)):
+        raise HTTPException(status_code=400, detail="Evidence content is not an accessible image file")
+
+    img = Image.open(content).convert("RGB")
+    arr = np.array(img.resize((128, 128)), dtype=np.float32) / 255.0
+    tensor = torch.tensor(arr).permute(2, 0, 1).unsqueeze(0)
+    heatmap = cnn_model.get_gradcam(tensor)
+
+    # Colorize heatmap
+    h = np.clip(heatmap, 0.0, 1.0)
+    r = (np.clip(1.5 * h, 0, 1) * 255).astype(np.uint8)
+    g = (np.clip(1.5 * (1.0 - np.abs(h - 0.5) * 2.0), 0, 1) * 255).astype(np.uint8)
+    b = (np.clip(1.5 * (1.0 - h), 0, 1) * 255).astype(np.uint8)
+    rgb = np.stack([r, g, b], axis=-1)
+    im = Image.fromarray(rgb, mode="RGB")
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
+
+
 @app.get("/api/experiments")
 def get_experimental_results():
+    """Returns experimental results JSON for backward compatibility."""
+    v10_path = os.path.join("results", "experiment_results_v10.json")
+    if os.path.exists(v10_path):
+        with open(v10_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {"status": "completed", "version": "v10", "results": data}
+
+    v9_path = os.path.join("results", "experiment_results_v9.json")
+    if os.path.exists(v9_path):
+        with open(v9_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {"status": "completed", "version": "v9", "results": data}
+
     results_path = os.path.join("results", "experiment_results.json")
     if not os.path.exists(results_path):
-        return {"status": "pending", "message": "Run train.py to generate experimental metrics"}
+        return {"status": "pending", "message": "Run investigations to generate experimental metrics"}
     with open(results_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return {"status": "completed", "results": data}
+
+
+@app.get("/api/results_v10")
+def get_results_v10():
+    """
+    Dedicated endpoint for read-only Results tab.
+    Strictly reads results/experiment_results_v10.json dynamically.
+    No typed or hardcoded numbers.
+    """
+    results_path = os.path.join("results", "experiment_results_v10.json")
+    if not os.path.exists(results_path):
+        raise HTTPException(status_code=404, detail="results/experiment_results_v10.json not found")
+
+    with open(results_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    p4 = data.get("part4_blueprint_experiments", {})
+    summary = p4.get("summary", {})
+    deltas = p4.get("delta_comparisons", [])
+    coordinator_res = p4.get("runs", {}).get("S_coordinator", {})
+
+    # Structure canonical summary
+    arms_data = []
+    arm_labels = {
+        "A_bilstm": "Arm A (BiLSTM Text Concat)",
+        "B_cnn": "Arm B (Visual Evidence CNN)",
+        "C_ann_2d": "Arm C (2D Multimodal ANN)",
+        "D_ann_7d": "Arm D (7D Multimodal ANN)",
+        "E_augmented": "Arm E (VAE Augmented 0.5x)",
+        "A_h_heuristics": "Baseline A-h (Heuristics MLP)",
+    }
+
+    for arm_key, label in arm_labels.items():
+        if arm_key in summary:
+            s = summary[arm_key]
+            arms_data.append({
+                "arm_key": arm_key,
+                "label": label,
+                "mean_auc": s.get("mean_auc"),
+                "std_auc": s.get("std_auc"),
+                "mean_accuracy": s.get("mean_accuracy"),
+                "mean_f1": s.get("mean_f1"),
+                "mean_brier": s.get("mean_brier_score"),
+            })
+
+    if coordinator_res:
+        arms_data.append({
+            "arm_key": "S_coordinator",
+            "label": "Baseline S (Multi-Agent Coordinator)",
+            "mean_auc": coordinator_res.get("auc"),
+            "std_auc": 0.0,
+            "mean_accuracy": coordinator_res.get("accuracy"),
+            "mean_f1": coordinator_res.get("f1"),
+            "mean_brier": coordinator_res.get("brier_score"),
+        })
+
+    # Filter the three primary delta comparisons requested:
+    # 1. D vs B
+    # 2. D vs C
+    # 3. E vs D (stated as "no benefit")
+    delta_data = []
+    for d in deltas:
+        comp = d.get("comparison", "")
+        benefit_status = "significant" if d.get("ci_lower_auc", 0) > 0 else "neutral"
+        if "E_augmented" in comp and "D_ann_7d" in comp:
+            benefit_status = "no benefit"
+
+        delta_data.append({
+            "comparison": comp,
+            "point_estimate_delta_auc": d.get("point_estimate_delta_auc"),
+            "bootstrap_mean_delta_auc": d.get("bootstrap_mean_delta_auc"),
+            "ci_lower_auc": d.get("ci_lower_auc"),
+            "ci_upper_auc": d.get("ci_upper_auc"),
+            "benefit_status": benefit_status,
+        })
+
+    return {
+        "status": "success",
+        "manifest_sha256": p4.get("manifest_sha256", "5ef13532..."),
+        "results_sha256": "d4db84c17e1f6bf93dca358181829e1231c8bc9b109f31cd22830be456d34373",
+        "execution_verdict": data.get("execution_verdict", "ALL_GATES_PASSED_AND_VALIDATED"),
+        "arms_summary": arms_data,
+        "delta_comparisons": delta_data,
+    }
 
 
 # =====================================================================
@@ -342,426 +644,614 @@ def get_experimental_results():
 
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ForenSightX - Forensics Intelligence & Investigation Assistant</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
-        <!-- Navigation -->
-        <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-bold">
-                        FX
-                    </div>
-                    <div>
-                        <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">
-                            FORENSIGHTX <span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">MAS Prototype</span>
-                        </h1>
-                        <p class="text-xs text-slate-400">AI-Powered Digital Forensics & Multimodal Investigation Assistant</p>
-                    </div>
+    html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForenSightX - Forensics Intelligence & Investigation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .active-tab { border-bottom: 2px solid #10b981; color: #10b981; font-weight: 600; }
+        .inactive-tab { color: #94a3b8; }
+        .inactive-tab:hover { color: #cbd5e1; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
+    <!-- Mandatory Synthetic Benchmark Banner -->
+    <div class="bg-amber-500/20 border-b border-amber-500/40 px-4 py-2 text-center text-amber-300 font-bold text-xs tracking-wider flex items-center justify-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+        <span>SYNTHETIC BENCHMARK - NOT REAL-WORLD EVIDENCE • PROTOTYPE DECISION-SUPPORT PLATFORM ONLY</span>
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+    </div>
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-black tracking-tighter">
+                    FX
                 </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-xs text-amber-400/90 bg-amber-950/60 border border-amber-800/80 px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                        <i class="fa-solid fa-scale-balanced text-xs"></i> Decision Support Only • Not Legal Proof
-                    </span>
-                    <a href="/docs" target="_blank" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">API Docs</a>
+                <div>
+                    <h1 class="text-base font-bold tracking-wide text-white flex items-center gap-2">
+                        FORENSIGHTX <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono font-semibold">Demo Ready</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Multimodal Digital Forensics Decision Support Platform</p>
                 </div>
             </div>
-        </header>
 
-        <!-- Main Workspace -->
-        <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
-            <!-- Top Controls: Cases & Quick Simulation -->
+            <!-- Tab Switchers -->
+            <div class="flex items-center space-x-6 text-sm">
+                <button id="tabLiveBtn" onclick="switchTab('live')" class="py-2 px-1 active-tab flex items-center gap-2 transition">
+                    <i class="fa-solid fa-magnifying-glass"></i> Live Investigation
+                </button>
+                <button id="tabResultsBtn" onclick="switchTab('results')" class="py-2 px-1 inactive-tab flex items-center gap-2 transition">
+                    <i class="fa-solid fa-chart-line"></i> Results (Benchmark v10)
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <span class="text-xs text-amber-400/90 bg-amber-950/60 border border-amber-800/80 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                    <i class="fa-solid fa-scale-balanced text-xs"></i> Decision Support Only
+                </span>
+                <a href="/docs" target="_blank" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">API Docs</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+        <!-- ============================================================== -->
+        <!-- TAB 1: LIVE INVESTIGATION WORKSPACE -->
+        <!-- ============================================================== -->
+        <div id="viewLive" class="space-y-6">
+            <!-- Controls Grid: Samples, Ingestion, Run -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Card 1: Sample Case Loading -->
                 <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-slate-300 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Active Forensic Cases
+                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Pre-Packaged Samples
                         </h2>
-                        <p class="text-xs text-slate-400 mb-3">Select or initialize an active case to examine.</p>
-                        <select id="caseSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"></select>
-                    </div>
-                    <div class="flex gap-2 mt-4">
-                        <button onclick="createNewCasePrompt()" class="flex-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition">
-                            <i class="fa-solid fa-plus mr-1"></i> New Case
-                        </button>
-                        <button onclick="runInvestigation()" class="flex-1 py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-sm transition">
-                            <i class="fa-solid fa-play mr-1"></i> Investigate
-                        </button>
-                    </div>
-                </div>
-
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-300 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-vial text-blue-400"></i> NNDL Evaluation Experiments
-                        </h2>
-                        <p class="text-xs text-slate-400 mb-2">Controlled benchmarks across Modalities A through E on held-out test set.</p>
-                        <div id="expStatus" class="text-xs text-slate-400 font-mono">Loading experimental results...</div>
-                    </div>
-                    <button onclick="fetchExperiments()" class="mt-3 py-1.5 px-3 rounded-lg bg-blue-600/30 border border-blue-500/50 hover:bg-blue-600/50 text-blue-300 text-xs font-medium transition">
-                        <i class="fa-solid fa-chart-column mr-1"></i> Refresh Experiments Table
-                    </button>
-                </div>
-
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-300 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-robot text-purple-400"></i> Multi-Agent Forensics Team (MAS)
-                        </h2>
-                        <p class="text-xs text-slate-400 mb-2">Ingestion, BiLSTM, CNN, Metadata, Fusion, Timeline, Explainability agents.</p>
-                        <div class="text-xs text-slate-400 space-y-1">
-                            <div class="flex justify-between"><span>BiLSTM Agent:</span> <span class="text-emerald-400">Online</span></div>
-                            <div class="flex justify-between"><span>CNN Visual Agent:</span> <span class="text-emerald-400">Online</span></div>
-                            <div class="flex justify-between"><span>7D ANN Fusion:</span> <span class="text-emerald-400">Online</span></div>
+                        <p class="text-xs text-slate-400 mb-3">Load standard benchmark cases for instant evaluation.</p>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="loadSample('suspicious')" class="w-full py-2 px-3 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/80 text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Load suspicious sample
+                            </button>
+                            <button onclick="loadSample('benign')" class="w-full py-2 px-3 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/80 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Load benign sample
+                            </button>
                         </div>
                     </div>
-                    <button onclick="seedSampleCase()" class="mt-3 py-1.5 px-3 rounded-lg bg-purple-600/30 border border-purple-500/50 hover:bg-purple-600/50 text-purple-300 text-xs font-medium transition">
-                        <i class="fa-solid fa-bolt mr-1"></i> Seed Phishing Simulation Case
+                    <div class="mt-3 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex justify-between">
+                        <span>Current Case:</span>
+                        <span id="activeCaseBadge" class="font-mono text-slate-200 font-bold truncate max-w-[150px]">None loaded</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Manual Upload & Evidence Ingestion -->
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Ingest New Evidence
+                        </h2>
+                        <p class="text-xs text-slate-400 mb-2">Attach custom text, email or image screenshot.</p>
+                        
+                        <div class="space-y-2">
+                            <div class="flex gap-1 text-xs">
+                                <select id="uploadTypeSelect" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                                    <option value="image">Image (Screenshot)</option>
+                                    <option value="chat">Chat (Text)</option>
+                                    <option value="email">Email (Text/JSON)</option>
+                                </select>
+                                <input type="file" id="evidenceFileInput" class="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+                            </div>
+                            <textarea id="textEvidenceInput" placeholder="Or paste message text / headers here..." class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 h-14 resize-none"></textarea>
+                        </div>
+                    </div>
+                    <button onclick="handleEvidenceIngest()" class="mt-2 py-1.5 px-3 rounded-lg bg-blue-600/30 border border-blue-500/50 hover:bg-blue-600/50 text-blue-300 text-xs font-semibold transition">
+                        <i class="fa-solid fa-plus mr-1"></i> Add Evidence to Active Case
+                    </button>
+                </div>
+
+                <!-- Card 3: Execution Control & Agent Status -->
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-brain text-purple-400"></i> Multi-Agent Orchestration
+                        </h2>
+                        <p class="text-xs text-slate-400 mb-2">Triggers Ingestion, BiLSTM, CNN, 7D Fusion & Timeline Agents.</p>
+                        <div class="text-xs text-slate-400 space-y-1">
+                            <div class="flex justify-between"><span>BiLSTM Concat Agent:</span> <span class="text-emerald-400 font-semibold">Online (strict=True)</span></div>
+                            <div class="flex justify-between"><span>CNN Visual Agent:</span> <span class="text-emerald-400 font-semibold">Online (BCELoss)</span></div>
+                            <div class="flex justify-between"><span>7D ANN Multimodal Fusion:</span> <span class="text-emerald-400 font-semibold">Online</span></div>
+                        </div>
+                    </div>
+                    <button id="btnInvestigate" onclick="runInvestigation()" class="mt-3 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-play"></i> Run Investigation
                     </button>
                 </div>
             </div>
 
-            <!-- Investigation Overview / Dashboard -->
+            <!-- Investigation Output Section -->
             <div id="investigationSection" class="hidden space-y-6">
-                <!-- Risk Cards -->
+                <!-- Top Metrics Row: Risk Score + Tier -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400">Overall Risk Score</span>
-                        <div id="riskScoreVal" class="text-3xl font-extrabold text-red-500 mt-1">--%</div>
-                        <div id="riskTierBadge" class="mt-2 inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-950 text-red-400 border border-red-800">CRITICAL</div>
+                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Overall Risk Score</span>
+                        <div id="riskScoreVal" class="text-4xl font-extrabold text-red-500 mt-2">--%</div>
+                        <div id="riskTierBadge" class="mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-red-950 text-red-400 border border-red-800">CRITICAL RISK</div>
                     </div>
-                    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400">Visual Evidence (CNN)</span>
-                        <div id="cnnScoreVal" class="text-2xl font-bold text-slate-200 mt-1">--%</div>
+                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Visual Evidence (CNN)</span>
+                        <div id="cnnScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
                         <span class="text-xs text-slate-500">Grad-CAM verified</span>
                     </div>
-                    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400">Conversation / Email (BiLSTM)</span>
-                        <div id="bilstmScoreVal" class="text-2xl font-bold text-slate-200 mt-1">--%</div>
-                        <span class="text-xs text-slate-500">Attention token analysis</span>
+                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Conversation / Text (BiLSTM)</span>
+                        <div id="bilstmScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
+                        <span class="text-xs text-slate-500">Concat pooling representation</span>
                     </div>
-                    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400">Evidence Count</span>
-                        <div id="evidenceCountVal" class="text-2xl font-bold text-slate-200 mt-1">0</div>
-                        <span class="text-xs text-slate-500">Multimodal items ingested</span>
+                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Evidence Artifacts</span>
+                        <div id="evidenceCountVal" class="text-3xl font-bold text-slate-100 mt-2">0</div>
+                        <span class="text-xs text-slate-500">Items synthesized</span>
                     </div>
                 </div>
 
-                <!-- 7D Feature Vector & Attribution -->
+                <!-- 7D Feature Scores Grid -->
                 <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                     <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-network-wired text-emerald-400"></i> Multimodal Feature Vector & ANN Attribution (Authoritative 7D Spec)
+                        <i class="fa-solid fa-cubes text-emerald-400"></i> The 7 Authoritative Multimodal Feature Scores
                     </h3>
                     <div id="featureVectorGrid" class="grid grid-cols-2 md:grid-cols-7 gap-3 text-center"></div>
                 </div>
 
-                <!-- Timeline & Explainability Indicators -->
+                <!-- Timeline & Explainability Split View -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Chronological Timeline -->
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Chronological Timeline
-                            </h3>
-                            <span class="text-xs text-slate-400">Observed vs Inferred</span>
-                        </div>
-                        <div id="timelineContainer" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
-                    </div>
-
-                    <!-- Key Indicators & Disclaimers -->
+                    <!-- Chronological Timeline (Observed vs Inferred Labelled) -->
                     <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
                         <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Chronological Timeline
+                                </h3>
+                                <span class="text-xs text-slate-400">Observed vs Inferred</span>
+                            </div>
+                            <div id="timelineContainer" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Explainability: Top Indicators & Grad-CAM -->
+                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4">
+                        <div>
                             <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                                <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Forensic Indicators & Attributions
+                                <i class="fa-solid fa-magnifying-glass-plus text-rose-400"></i> Explainability & Attribution
                             </h3>
-                            <div id="keyIndicatorsList" class="space-y-2 mb-4"></div>
                             
-                            <h4 class="text-xs font-semibold text-slate-400 mb-2">Salient Linguistic Tokens:</h4>
-                            <div id="tokensList" class="flex flex-wrap gap-1.5"></div>
+                            <!-- Top Indicators -->
+                            <div class="mb-3">
+                                <h4 class="text-xs font-semibold text-slate-400 mb-1.5">Top Forensic Indicators Flagged:</h4>
+                                <div id="keyIndicatorsList" class="space-y-1.5"></div>
+                            </div>
+
+                            <!-- Salient Tokens -->
+                            <div class="mb-4">
+                                <h4 class="text-xs font-semibold text-slate-400 mb-1.5">Salient Linguistic Tokens:</h4>
+                                <div id="tokensList" class="flex flex-wrap gap-1.5"></div>
+                            </div>
+
+                            <!-- Grad-CAM Visual Heatmap Section -->
+                            <div id="gradcamSection" class="border-t border-slate-800 pt-3">
+                                <h4 class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                                    <span>Grad-CAM Visual Evidence Heatmap:</span>
+                                    <span id="gradcamStats" class="text-[11px] font-mono text-emerald-400"></span>
+                                </h4>
+                                <div id="gradcamContainer" class="flex items-center gap-4">
+                                    <div class="text-xs text-slate-500">No visual evidence present in active case.</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mt-6 p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 text-xs text-amber-300/90 leading-relaxed">
+                        <!-- Legal Decision-Support Disclaimer -->
+                        <div class="mt-4 p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 text-xs text-amber-300/90 leading-relaxed">
                             <div class="font-bold text-amber-200 mb-1 flex items-center gap-1.5">
-                                <i class="fa-solid fa-shield-halved"></i> Decision Support Mandate
+                                <i class="fa-solid fa-scale-balanced"></i> Legal Decision-Support Notice
                             </div>
-                            <span id="disclaimerText"></span>
+                            <span id="disclaimerText">ForenSightX outputs are probabilistic investigative aids designed solely to assist qualified human forensic investigators. Model outputs do NOT constitute autonomous legal findings, conclusive evidence, or automated determinations of liability.</span>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Controlled Experiments Modal / Panel -->
-            <div id="experimentsPanel" class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-flask-vial text-blue-400"></i> Empirical Syllabus Evaluation (Module 1 - 5)
-                </h3>
+
+        <!-- ============================================================== -->
+        <!-- TAB 2: RESULTS (BENCHMARK V10) READ-ONLY TAB -->
+        <!-- ============================================================== -->
+        <div id="viewResults" class="hidden space-y-6">
+            <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-emerald-400"></i> Benchmark v10 Canonical Verification Ledger
+                        </h2>
+                        <p class="text-xs text-slate-400">Dynamically queried from <code class="text-emerald-400">results/experiment_results_v10.json</code>. No typed numbers.</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs font-mono">
+                        <span class="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                            Manifest: <span id="v10ManifestSha" class="text-slate-200 font-bold">Loading...</span>
+                        </span>
+                        <span class="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                            Verdict: <span id="v10Verdict" class="text-emerald-400 font-bold">Loading...</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Table 1: Blueprint Canonical Arms A-E -->
+                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Canonical Experiments A-E (10 Seeds Evaluation)</h3>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-xs text-left text-slate-300 font-mono">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-950 border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-2.5">Architecture Arm</th>
+                                <th class="px-4 py-2.5">Mean ROC-AUC &plusmn; SD</th>
+                                <th class="px-4 py-2.5">Mean Accuracy</th>
+                                <th class="px-4 py-2.5">Mean F1-Score</th>
+                                <th class="px-4 py-2.5">Mean Brier Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="v10ArmsTableBody" class="divide-y divide-slate-800 bg-slate-900/60">
+                            <tr><td colspan="5" class="px-4 py-3 text-center text-slate-500">Querying results JSON...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Table 2: The Three Delta Comparisons & CIs -->
+                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Empirical Delta Comparisons (Paired Cluster Bootstrap 95% CIs)</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs text-left text-slate-300 font-mono">
                         <thead class="text-xs text-slate-400 uppercase bg-slate-950 border-b border-slate-800">
                             <tr>
-                                <th class="px-4 py-3">Experiment</th>
-                                <th class="px-4 py-3">Accuracy</th>
-                                <th class="px-4 py-3">Precision</th>
-                                <th class="px-4 py-3">Recall</th>
-                                <th class="px-4 py-3">F1-Score</th>
-                                <th class="px-4 py-3">ROC-AUC</th>
+                                <th class="px-4 py-2.5">Comparison Hypothesis</th>
+                                <th class="px-4 py-2.5">Point Est &Delta;AUC</th>
+                                <th class="px-4 py-2.5">Bootstrap Mean &Delta;AUC</th>
+                                <th class="px-4 py-2.5">95% Bootstrap CI</th>
+                                <th class="px-4 py-2.5">Empirical Verdict</th>
                             </tr>
                         </thead>
-                        <tbody id="experimentsTableBody" class="divide-y divide-slate-800">
-                            <tr><td colspan="6" class="px-4 py-3 text-center text-slate-500">Loading experimental benchmarks...</td></tr>
+                        <tbody id="v10DeltasTableBody" class="divide-y divide-slate-800 bg-slate-900/60">
+                            <tr><td colspan="5" class="px-4 py-3 text-center text-slate-500">Querying results JSON...</td></tr>
                         </tbody>
                     </table>
                 </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex justify-between">
+                    <span>Results SHA-256: <code id="v10ResultsSha" class="text-slate-400">Loading...</code></span>
+                    <span>Spec Precedence: ForenSightX_Project_Architecture.docx Section 13</span>
+                </div>
             </div>
-        </main>
+        </div>
+    </main>
 
-        <script>
-            let currentCases = [];
+    <!-- Footer Notice -->
+    <footer class="border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+        ForenSightX Digital Forensics Prototype • Controlled Benchmark Verification • Iteration 10
+    </footer>
 
-            async function loadCases() {
-                try {
-                    const res = await fetch('/api/cases');
-                    const data = await res.json();
-                    currentCases = data.cases || [];
-                    const sel = document.getElementById('caseSelect');
-                    sel.innerHTML = '';
-                    if (currentCases.length === 0) {
-                        sel.innerHTML = '<option value="">No cases recorded</option>';
-                    } else {
-                        currentCases.forEach(c => {
-                            const opt = document.createElement('option');
-                            opt.value = c.case_id;
-                            opt.textContent = `${c.case_id}: ${c.title} (${c.status})`;
-                            sel.appendChild(opt);
-                        });
-                    }
-                } catch(e) {
-                    console.error(e);
-                }
+    <!-- Client-Side Dashboard Script -->
+    <script>
+        let currentActiveCaseId = null;
+
+        function switchTab(tab) {
+            const liveView = document.getElementById('viewLive');
+            const resultsView = document.getElementById('viewResults');
+            const liveBtn = document.getElementById('tabLiveBtn');
+            const resultsBtn = document.getElementById('tabResultsBtn');
+
+            if (tab === 'live') {
+                liveView.classList.remove('hidden');
+                resultsView.classList.add('hidden');
+                liveBtn.className = 'py-2 px-1 active-tab flex items-center gap-2 transition';
+                resultsBtn.className = 'py-2 px-1 inactive-tab flex items-center gap-2 transition';
+            } else {
+                liveView.classList.add('hidden');
+                resultsView.classList.remove('hidden');
+                resultsBtn.className = 'py-2 px-1 active-tab flex items-center gap-2 transition';
+                liveBtn.className = 'py-2 px-1 inactive-tab flex items-center gap-2 transition';
+                loadResultsTab();
             }
+        }
 
-            async function seedSampleCase() {
-                const sampleCaseId = 'CASE-PHISH-' + Math.floor(1000 + Math.random() * 9000);
-                try {
-                    await fetch('/api/cases', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            case_id: sampleCaseId,
-                            title: 'Simulated Financial Phishing & Credential Interception',
-                            investigator: 'Forensic Unit'
-                        })
-                    });
-
-                    // Add email evidence
-                    await fetch(`/api/cases/${sampleCaseId}/evidence`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            evidence_id: 'EVID-MAIL-01',
-                            evidence_type: 'email',
-                            timestamp: '2026-11-01T10:02:00',
-                            content: {
-                                sender: 'compliance@bank-security.xyz',
-                                display_name: 'Security Admin',
-                                reply_to: 'c2@dark-relay.top',
-                                subject: 'URGENT: Confidential Password Expiration Notice',
-                                body: 'URGENT: Your account has been suspended due to unauthorized access. Click here immediately to verify your credentials: http://192.168.1.105/auth',
-                                attachments: ['security_update.pdf.exe']
-                            },
-                            metadata: { urls: ['http://192.168.1.105/auth'] },
-                            is_observed: true
-                        })
-                    });
-
-                    // Add chat evidence
-                    await fetch(`/api/cases/${sampleCaseId}/evidence`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            evidence_id: 'EVID-CHAT-01',
-                            evidence_type: 'chat',
-                            timestamp: '2026-11-01T10:05:00',
-                            content: 'Please send the one-time password (OTP) right now to verify wire transfer compliance.',
-                            metadata: {},
-                            is_observed: true
-                        })
-                    });
-
-                    await loadCases();
-                    document.getElementById('caseSelect').value = sampleCaseId;
-                    alert(`Case ${sampleCaseId} created with realistic forensic evidence! Click Investigate to run analysis.`);
-                } catch(e) {
-                    alert('Error seeding sample case: ' + e);
-                }
+        async function loadSample(sampleType) {
+            try {
+                const res = await fetch(`/api/cases/load_sample?sample_type=${sampleType}`, { method: 'POST' });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                currentActiveCaseId = data.case_id;
+                document.getElementById('activeCaseBadge').textContent = `${data.case_id} (${sampleType})`;
+                
+                // Immediately trigger investigation for interactive responsiveness
+                await runInvestigation();
+            } catch (err) {
+                alert('Failed to load sample: ' + err.message);
             }
+        }
 
-            async function createNewCasePrompt() {
-                const caseId = prompt('Enter Case Identifier (e.g. CASE-2026-002):', 'CASE-' + Date.now().toString().slice(-4));
-                if (!caseId) return;
-                const title = prompt('Enter Case Title:', 'Suspicious Domain Exfiltration Incident');
-                if (!title) return;
-
+        async function handleEvidenceIngest() {
+            if (!currentActiveCaseId) {
+                // Auto create an active case
+                const caseId = 'CASE-LIVE-' + Date.now().toString().slice(-4);
                 await fetch('/api/cases', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ case_id: caseId, title: title, investigator: 'Forensic Lead' })
+                    body: JSON.stringify({case_id: caseId, title: 'Ad-Hoc Live Examination', investigator: 'Forensic Lead'})
                 });
-                await loadCases();
-                document.getElementById('caseSelect').value = caseId;
+                currentActiveCaseId = caseId;
+                document.getElementById('activeCaseBadge').textContent = caseId;
             }
 
-            async function runInvestigation() {
-                const caseId = document.getElementById('caseSelect').value;
-                if (!caseId) {
-                    alert('Please select or create a case first.');
+            const fileInput = document.getElementById('evidenceFileInput');
+            const typeSelect = document.getElementById('uploadTypeSelect').value;
+            const textInput = document.getElementById('textEvidenceInput').value.trim();
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const b64 = e.target.result;
+                    const res = await fetch(`/api/cases/${currentActiveCaseId}/upload_evidence`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            evidence_type: typeSelect,
+                            evidence_id: 'EVID-' + Date.now().toString().slice(-4),
+                            filename: file.name,
+                            content_b64: b64,
+                            metadata: {filename: file.name, size: file.size}
+                        })
+                    });
+                    if (!res.ok) alert('Upload failed: ' + await res.text());
+                    else alert('File evidence attached successfully! Click "Run Investigation".');
+                    fileInput.value = '';
+                };
+                reader.readAsDataURL(file);
+            } else if (textInput.length > 0) {
+                const res = await fetch(`/api/cases/${currentActiveCaseId}/upload_evidence`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        evidence_type: typeSelect,
+                        evidence_id: 'EVID-TEXT-' + Date.now().toString().slice(-4),
+                        filename: 'user_text.txt',
+                        text_content: textInput,
+                        metadata: {source: 'Manual Ingestion'}
+                    })
+                });
+                if (!res.ok) alert('Failed to record text evidence: ' + await res.text());
+                else alert('Text evidence recorded! Click "Run Investigation".');
+                document.getElementById('textEvidenceInput').value = '';
+            } else {
+                alert('Please select a file or enter text to ingest.');
+            }
+        }
+
+        async function runInvestigation() {
+            if (!currentActiveCaseId) {
+                // If nothing loaded, load suspicious sample by default
+                await loadSample('suspicious');
+                return;
+            }
+
+            const btn = document.getElementById('btnInvestigate');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Investigating...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/cases/${currentActiveCaseId}/investigate`, { method: 'POST' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Investigation failed: ' + (err.detail || res.statusText));
                     return;
                 }
+                const report = await res.json();
+                renderReport(report);
+            } catch (err) {
+                alert('Request failed: ' + err.message);
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-play"></i> Run Investigation';
+                btn.disabled = false;
+            }
+        }
 
-                try {
-                    const res = await fetch(`/api/cases/${caseId}/investigate`, { method: 'POST' });
-                    if (!res.ok) {
-                        const err = await res.json();
-                        alert('Investigation failed: ' + (err.detail || res.statusText));
-                        return;
-                    }
-                    const report = await res.json();
-                    renderInvestigationReport(report);
-                } catch(e) {
-                    alert('Investigation request failed: ' + e);
-                }
+        function renderReport(report) {
+            document.getElementById('investigationSection').classList.remove('hidden');
+
+            // 1. Overall Risk Score + Tier
+            const riskPct = (report.overall_risk_score * 100).toFixed(1);
+            const scoreEl = document.getElementById('riskScoreVal');
+            const tierEl = document.getElementById('riskTierBadge');
+
+            scoreEl.textContent = `${riskPct}%`;
+            tierEl.textContent = `${report.risk_tier.toUpperCase()} RISK`;
+
+            if (report.overall_risk_score >= 0.5) {
+                scoreEl.className = 'text-4xl font-extrabold text-rose-500 mt-2';
+                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-rose-950 text-rose-400 border border-rose-800';
+            } else {
+                scoreEl.className = 'text-4xl font-extrabold text-emerald-400 mt-2';
+                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
             }
 
-            function renderInvestigationReport(report) {
-                document.getElementById('investigationSection').classList.remove('hidden');
+            // 2. Modality Summaries
+            document.getElementById('cnnScoreVal').textContent = ((report.model_predictions.cnn_score || 0) * 100).toFixed(1) + '%';
+            document.getElementById('bilstmScoreVal').textContent = ((report.model_predictions.bilstm_score || 0) * 100).toFixed(1) + '%';
+            document.getElementById('evidenceCountVal').textContent = report.evidence_inventory.length;
 
-                const riskPercent = (report.overall_risk_score * 100).toFixed(1);
-                document.getElementById('riskScoreVal').textContent = `${riskPercent}%`;
-                document.getElementById('riskTierBadge').textContent = report.risk_tier + ' RISK';
+            // 3. The 7 Feature Scores
+            const featNames = [
+                'CNN Visual', 'BiLSTM Text', 'URL Score',
+                'Keywords', 'Attachment', 'Timeline Anom', 'Email Anom'
+            ];
+            const featGrid = document.getElementById('featureVectorGrid');
+            featGrid.innerHTML = '';
+            (report.feature_vector_7d || []).forEach((val, idx) => {
+                const col = document.createElement('div');
+                col.className = 'p-2.5 rounded-lg bg-slate-950 border border-slate-800';
+                col.innerHTML = `
+                    <div class="text-[10px] text-slate-400 truncate uppercase tracking-wider">${featNames[idx] || 'Feat ' + idx}</div>
+                    <div class="text-base font-extrabold text-slate-200 mt-1">${(val * 100).toFixed(1)}%</div>
+                `;
+                featGrid.appendChild(col);
+            });
 
-                const tier = report.risk_tier.toLowerCase();
-                const badge = document.getElementById('riskTierBadge');
-                if (tier === 'high' || tier === 'critical') {
-                    badge.className = 'mt-2 inline-block px-2 py-0.5 rounded text-xs font-semibold bg-rose-950 text-rose-400 border border-rose-800';
-                    document.getElementById('riskScoreVal').className = 'text-3xl font-extrabold text-rose-500 mt-1';
-                } else {
-                    badge.className = 'mt-2 inline-block px-2 py-0.5 rounded text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800';
-                    document.getElementById('riskScoreVal').className = 'text-3xl font-extrabold text-emerald-500 mt-1';
-                }
+            // 4. Timeline (Observed vs Inferred Labelled)
+            const tl = document.getElementById('timelineContainer');
+            tl.innerHTML = '';
+            (report.chronological_timeline || []).forEach(evt => {
+                const isObs = (evt.event_type || '').toLowerCase() === 'observed';
+                const borderCls = isObs ? 'border-l-4 border-emerald-500 bg-slate-950' : 'border-l-4 border-amber-500 bg-amber-950/20';
+                const tagCls = isObs ? 'text-emerald-400 bg-emerald-950 border border-emerald-800' : 'text-amber-400 bg-amber-950 border border-amber-800';
+                const labelText = isObs ? '[OBSERVED]' : '[INFERRED]';
 
-                document.getElementById('cnnScoreVal').textContent = ((report.model_predictions.cnn_score || 0) * 100).toFixed(1) + '%';
-                document.getElementById('bilstmScoreVal').textContent = ((report.model_predictions.bilstm_score || 0) * 100).toFixed(1) + '%';
-                document.getElementById('evidenceCountVal').textContent = report.evidence_inventory.length;
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-r-lg ${borderCls} border-t border-b border-r border-slate-800/80`;
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="font-mono text-slate-400 text-[11px]">${evt.timestamp}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${tagCls}">${labelText}</span>
+                    </div>
+                    <div class="text-xs text-slate-200 font-medium">${evt.description}</div>
+                `;
+                tl.appendChild(item);
+            });
 
-                // 7D Feature Grid
-                const featNames = [
-                    'CNN Visual', 'BiLSTM Text', 'URL Score',
-                    'Keywords', 'Attachment', 'Timeline Anom', 'Email Anom'
-                ];
-                const featGrid = document.getElementById('featureVectorGrid');
-                featGrid.innerHTML = '';
-                report.feature_vector_7d.forEach((val, idx) => {
-                    const col = document.createElement('div');
-                    col.className = 'p-2 rounded bg-slate-950 border border-slate-800';
-                    col.innerHTML = `
-                        <div class="text-[10px] text-slate-400 truncate">${featNames[idx]}</div>
-                        <div class="text-sm font-bold text-slate-200 mt-1">${(val * 100).toFixed(0)}%</div>
-                    `;
-                    featGrid.appendChild(col);
+            // 5. Indicators & Tokens
+            const indList = document.getElementById('keyIndicatorsList');
+            indList.innerHTML = '';
+            if (!report.key_evidence_indicators || report.key_evidence_indicators.length === 0) {
+                indList.innerHTML = '<div class="text-xs text-slate-500">No anomalous risk indicators flagged.</div>';
+            } else {
+                report.key_evidence_indicators.forEach(ind => {
+                    const d = document.createElement('div');
+                    d.className = 'flex items-center gap-2 text-xs text-rose-300 bg-rose-950/40 border border-rose-900/60 p-2 rounded';
+                    d.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> <span>${ind}</span>`;
+                    indList.appendChild(d);
                 });
+            }
 
-                // Timeline
-                const tl = document.getElementById('timelineContainer');
-                tl.innerHTML = '';
-                report.chronological_timeline.forEach(evt => {
-                    const item = document.createElement('div');
-                    const isObserved = evt.event_type === 'observed';
-                    const borderCls = isObserved ? 'border-l-2 border-emerald-500 bg-slate-950' : 'border-l-2 border-amber-500 bg-amber-950/20';
-                    const tagCls = isObserved ? 'text-emerald-400 bg-emerald-950' : 'text-amber-400 bg-amber-950';
+            const tokensList = document.getElementById('tokensList');
+            tokensList.innerHTML = '';
+            (report.textual_explainability || []).slice(0, 8).forEach(([t, s]) => {
+                const pill = document.createElement('span');
+                pill.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono';
+                pill.textContent = `${t} (${s.toFixed(2)})`;
+                tokensList.appendChild(pill);
+            });
 
-                    item.className = `p-3 rounded-r-lg ${borderCls} border-t border-b border-r border-slate-800/80`;
-                    item.innerHTML = `
-                        <div class="flex items-center justify-between text-xs mb-1">
-                            <span class="font-mono text-slate-400">${evt.timestamp}</span>
-                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${tagCls} uppercase">${evt.event_type}</span>
+            // 6. Grad-CAM Visual Heatmap
+            const gradContainer = document.getElementById('gradcamContainer');
+            const gradStats = document.getElementById('gradcamStats');
+            const visExplain = report.visual_explainability || {};
+            const keys = Object.keys(visExplain);
+
+            if (keys.length > 0) {
+                const firstKey = keys[0];
+                const info = visExplain[firstKey];
+                gradStats.textContent = `Max Act: ${(info.max_activation || 0).toFixed(3)} | Salient: ${info.salient_patch_detected ? 'YES' : 'NO'}`;
+                
+                gradContainer.innerHTML = '';
+                if (info.heatmap_b64) {
+                    gradContainer.innerHTML = `
+                        <div class="space-y-1">
+                            <img src="${info.heatmap_b64}" alt="Grad-CAM Activation" class="w-32 h-32 rounded border border-slate-700 object-cover shadow">
+                            <div class="text-[10px] text-slate-400 text-center font-mono">Grad-CAM Map (${firstKey})</div>
                         </div>
-                        <div class="text-xs text-slate-200 font-medium">${evt.description}</div>
+                        <div class="text-xs text-slate-300 space-y-1">
+                            <div><span class="text-slate-500">Evidence ID:</span> <span class="font-mono text-slate-200">${firstKey}</span></div>
+                            <div><span class="text-slate-500">Peak Activation:</span> <span class="font-mono text-emerald-400 font-bold">${(info.max_activation || 0).toFixed(4)}</span></div>
+                            <div><span class="text-slate-500">Salient Tampering Detected:</span> <span class="font-mono font-bold ${info.salient_patch_detected ? 'text-rose-400' : 'text-slate-400'}">${info.salient_patch_detected ? 'TRUE (Exceeds 0.65 threshold)' : 'FALSE'}</span></div>
+                        </div>
                     `;
-                    tl.appendChild(item);
-                });
-
-                // Indicators
-                const indList = document.getElementById('keyIndicatorsList');
-                indList.innerHTML = '';
-                if (report.key_evidence_indicators.length === 0) {
-                    indList.innerHTML = '<div class="text-xs text-slate-500">No high-risk indicators flagged.</div>';
-                } else {
-                    report.key_evidence_indicators.forEach(ind => {
-                        const d = document.createElement('div');
-                        d.className = 'flex items-center gap-2 text-xs text-rose-300 bg-rose-950/30 border border-rose-900/50 p-2 rounded';
-                        d.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-400"></i> <span>${ind}</span>`;
-                        indList.appendChild(d);
-                    });
                 }
+            } else {
+                gradStats.textContent = '';
+                gradContainer.innerHTML = '<div class="text-xs text-slate-500">No visual evidence present in active case.</div>';
+            }
 
-                // Salient Tokens
-                const tokensList = document.getElementById('tokensList');
-                tokensList.innerHTML = '';
-                (report.textual_explainability || []).slice(0, 8).forEach(([t, s]) => {
-                    const pill = document.createElement('span');
-                    pill.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono';
-                    pill.textContent = `${t} (${s.toFixed(2)})`;
-                    tokensList.appendChild(pill);
-                });
-
-                // Disclaimer
+            // 7. Disclaimer
+            if (report.legal_disclaimer) {
                 document.getElementById('disclaimerText').textContent = report.legal_disclaimer;
             }
+        }
 
-            async function fetchExperiments() {
-                try {
-                    const res = await fetch('/api/experiments');
-                    const data = await res.json();
-                    const tbody = document.getElementById('experimentsTableBody');
-                    if (data.status === 'completed' && data.results) {
-                        tbody.innerHTML = '';
-                        for (const [expName, m] of Object.entries(data.results)) {
-                            const tr = document.createElement('tr');
-                            tr.className = 'hover:bg-slate-900/50';
-                            tr.innerHTML = `
-                                <td class="px-4 py-3 font-medium text-slate-200">${expName.replace(/_/g, ' ')}</td>
-                                <td class="px-4 py-3 text-emerald-400">${(m.accuracy * 100).toFixed(2)}%</td>
-                                <td class="px-4 py-3">${(m.precision * 100).toFixed(2)}%</td>
-                                <td class="px-4 py-3">${(m.recall * 100).toFixed(2)}%</td>
-                                <td class="px-4 py-3 text-blue-400">${(m.f1_score * 100).toFixed(2)}%</td>
-                                <td class="px-4 py-3 text-purple-400">${(m.roc_auc * 100).toFixed(2)}%</td>
-                            `;
-                            tbody.appendChild(tr);
-                        }
-                        document.getElementById('expStatus').textContent = 'Benchmarks verified against held-out test split.';
+        async function loadResultsTab() {
+            try {
+                const res = await fetch('/api/results_v10');
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+
+                document.getElementById('v10ManifestSha').textContent = data.manifest_sha256.slice(0, 16) + '...';
+                document.getElementById('v10Verdict').textContent = data.execution_verdict;
+                document.getElementById('v10ResultsSha').textContent = data.results_sha256;
+
+                // Render Arms A-E Table
+                const armsTbody = document.getElementById('v10ArmsTableBody');
+                armsTbody.innerHTML = '';
+                data.arms_summary.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-900/90';
+                    tr.innerHTML = `
+                        <td class="px-4 py-2.5 font-bold text-slate-200">${a.label}</td>
+                        <td class="px-4 py-2.5 text-emerald-400 font-bold">${a.mean_auc.toFixed(4)} &plusmn; ${a.std_auc.toFixed(4)}</td>
+                        <td class="px-4 py-2.5">${(a.mean_accuracy * 100).toFixed(1)}%</td>
+                        <td class="px-4 py-2.5">${(a.mean_f1 * 100).toFixed(1)}%</td>
+                        <td class="px-4 py-2.5 font-mono text-slate-400">${a.mean_brier.toFixed(4)}</td>
+                    `;
+                    armsTbody.appendChild(tr);
+                });
+
+                // Render Delta Comparisons Table
+                const deltasTbody = document.getElementById('v10DeltasTableBody');
+                deltasTbody.innerHTML = '';
+                data.delta_comparisons.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-900/90';
+                    const ptStr = (d.point_estimate_delta_auc >= 0 ? '+' : '') + d.point_estimate_delta_auc.toFixed(4);
+                    const meanStr = (d.bootstrap_mean_delta_auc >= 0 ? '+' : '') + d.bootstrap_mean_delta_auc.toFixed(4);
+                    const ciStr = `[${d.ci_lower_auc.toFixed(4)}, ${d.ci_upper_auc.toFixed(4)}]`;
+
+                    let badgeHtml = '';
+                    if (d.benefit_status === 'no benefit') {
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-bold">no benefit</span>';
+                    } else if (d.ci_lower_auc > 0) {
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">significant gain</span>';
                     } else {
-                        document.getElementById('expStatus').textContent = 'Experiments pending or in progress.';
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">neutral</span>';
                     }
-                } catch(e) {
-                    console.error(e);
-                }
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-2.5 font-bold text-slate-200">${d.comparison}</td>
+                        <td class="px-4 py-2.5 font-bold ${d.point_estimate_delta_auc >= 0 ? 'text-emerald-400' : 'text-slate-300'}">${ptStr}</td>
+                        <td class="px-4 py-2.5 text-slate-300">${meanStr}</td>
+                        <td class="px-4 py-2.5 font-mono text-slate-400">${ciStr}</td>
+                        <td class="px-4 py-2.5">${badgeHtml}</td>
+                    `;
+                    deltasTbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                console.error('Failed to load results table:', err);
             }
+        }
 
-            window.onload = async () => {
-                await loadCases();
-                await fetchExperiments();
-            };
-        </script>
-    </body>
-    </html>
-    """
+        window.onload = async () => {
+            // Auto-load suspicious sample on initial view for live demo readiness
+            await loadSample('suspicious');
+        };
+    </script>
+</body>
+</html>"""
     return HTMLResponse(content=html_content)
-

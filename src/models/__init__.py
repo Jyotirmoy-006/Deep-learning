@@ -287,15 +287,25 @@ class VisualEvidenceCNN(nn.Module):
     ) -> np.ndarray:
         self.eval()
         input_tensor = input_tensor.clone().detach().requires_grad_(True)
-        prob = self.forward(input_tensor)
         self.zero_grad()
-        prob.backward(retain_graph=True)
+
+        # Pass through conv blocks to capture activations
+        x = self.pool(F.relu(self.bn1(self.conv1(input_tensor))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        conv3_out = F.relu(self.bn3(self.conv3(x)))
+        conv3_out.register_hook(self._save_gradient)
+        self.activations = conv3_out
+        pooled = self.adaptive_pool(conv3_out)
+
+        # Compute gradient wrt pre-sigmoid logit to prevent sigmoid saturation vanishing gradient
+        logit = self.classifier[:5](pooled)
+        logit.backward(retain_graph=True)
 
         if self.gradients is None or self.activations is None:
             return np.zeros(target_size, dtype=np.float32)
 
         pooled_gradients = torch.mean(self.gradients, dim=[0, 2, 3])
-        activations = self.activations[0]
+        activations = self.activations[0].clone()
 
         for i in range(activations.shape[0]):
             activations[i] *= pooled_gradients[i]

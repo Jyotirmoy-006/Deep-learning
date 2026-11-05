@@ -5,6 +5,9 @@ Implements collaborative specialized agents for forensic evidence analysis,
 multimodal fusion, timeline reconstruction, explainability, and reporting.
 """
 
+import os
+import io
+import base64
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -242,6 +245,20 @@ class TextAnalysisAgent(BaseForensicAgent):
         return {"bilstm_score": avg_score, "token_importance": sorted_tokens}
 
 
+def _heatmap_to_base64_png(heatmap: np.ndarray) -> str:
+    """Converts a (H, W) float heatmap in [0, 1] into a base64 encoded PNG data URI."""
+    h = np.clip(heatmap, 0.0, 1.0)
+    r = (np.clip(1.5 * h, 0, 1) * 255).astype(np.uint8)
+    g = (np.clip(1.5 * (1.0 - np.abs(h - 0.5) * 2.0), 0, 1) * 255).astype(np.uint8)
+    b = (np.clip(1.5 * (1.0 - h), 0, 1) * 255).astype(np.uint8)
+    rgb = np.stack([r, g, b], axis=-1)
+    im = Image.fromarray(rgb, mode="RGB")
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 class VisualAnalysisAgent(BaseForensicAgent):
     """Analyzes image/screenshot evidence via CNN and computes Grad-CAM explainability."""
 
@@ -287,6 +304,7 @@ class VisualAnalysisAgent(BaseForensicAgent):
                 "max_activation": float(np.max(gradcam_map)),
                 "mean_activation": float(np.mean(gradcam_map)),
                 "salient_patch_detected": bool(np.max(gradcam_map) > 0.65),
+                "heatmap_b64": _heatmap_to_base64_png(gradcam_map),
             }
 
         avg_cnn = float(np.mean(scores)) if scores else 0.0
