@@ -1,15 +1,10 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/index.py": {
+    "src/api.py": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "excludeFiles": "{tests/**,docs/**,scripts/**,*.md}"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
-    }
-  ]
+  }
 }
