@@ -14,7 +14,10 @@ from datetime import datetime, timedelta
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 TEST_DATA_DIR = os.path.join(BASE_DIR, "test_data")
 IMG_DIR = os.path.join(TEST_DATA_DIR, "images")
 CHAT_DIR = os.path.join(TEST_DATA_DIR, "chats")
@@ -25,91 +28,49 @@ for d in [TEST_DATA_DIR, IMG_DIR, CHAT_DIR, EMAIL_DIR, CASE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 
+from src.data_loader import ForensicDatasetGenerator
+
 # =====================================================================
 # 1. Generate Images
 # =====================================================================
 
 def make_suspicious_wire_invoice():
-    img = Image.new("RGB", (256, 256), color=(245, 245, 248))
+    gen = ForensicDatasetGenerator(seed=99)
+    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
     draw = ImageDraw.Draw(img)
-    # Header bar
-    draw.rectangle([15, 15, 241, 55], fill=(30, 45, 80))
-    draw.text((25, 25), "INTERNATIONAL WIRE INVOICE", fill=(255, 255, 255))
-    draw.text((25, 68), "Beneficiary: Offshore Holdings Ltd", fill=(30, 30, 30))
-    draw.text((25, 88), "Amount: $485,000.00 USD", fill=(190, 20, 20))
-    draw.text((25, 108), "Bank: Global Trust Cayman", fill=(30, 30, 30))
-    draw.text((25, 128), "SWIFT: GLTRKY33 | IBAN: KY88GLTR00", fill=(30, 30, 30))
-    draw.text((25, 148), "Memo: Confidential Acquisition Wire", fill=(80, 80, 80))
-    # Urgent stamp
-    draw.rectangle([130, 185, 240, 235], outline=(220, 20, 20), width=3)
-    draw.text((145, 202), "URGENT PAYMENT", fill=(220, 20, 20))
-    # Tampering noise patch in corner
-    np.random.seed(42)
-    patch = np.random.randint(180, 255, (45, 45, 3), dtype=np.uint8)
-    img.paste(Image.fromarray(patch), (20, 185))
+    draw.text((25, 38), "WIRE INVOICE #88219", fill=(255, 255, 255))
+    draw.text((25, 95), "URGENT WIRE $48,500 - OVERSEAS VENDOR", fill=(200, 20, 20))
     path = os.path.join(IMG_DIR, "suspicious_wire_transfer_invoice.png")
     img.save(path)
     return path
 
 
 def make_suspicious_login_portal():
-    img = Image.new("RGB", (256, 256), color=(25, 30, 40))
+    gen = ForensicDatasetGenerator(seed=42)
+    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
     draw = ImageDraw.Draw(img)
-    # Dialog box
-    draw.rectangle([20, 20, 236, 236], fill=(35, 42, 58), outline=(60, 75, 105), width=2)
-    draw.text((35, 35), "Corporate Single Sign-On (SSO)", fill=(255, 255, 255))
-    draw.text((35, 55), "Account Session Expired", fill=(240, 80, 80))
-    # Fake inputs
-    draw.rectangle([35, 85, 220, 115], fill=(20, 25, 35), outline=(90, 110, 140))
-    draw.text((45, 93), "john.doe@company.internal", fill=(160, 175, 195))
-    draw.rectangle([35, 130, 220, 160], fill=(20, 25, 35), outline=(90, 110, 140))
-    draw.text((45, 138), "Enter OTP / Password", fill=(220, 100, 100))
-    # Suspicious tampering overlay / spliced warning
-    draw.rectangle([35, 175, 220, 215], fill=(180, 30, 30))
-    draw.text((45, 188), "VERIFY NOW OR LOCK", fill=(255, 255, 255))
-    np.random.seed(101)
-    noise = np.random.randint(100, 255, (25, 50, 3), dtype=np.uint8)
-    img.paste(Image.fromarray(noise), (160, 75))
+    draw.text((25, 38), "SSO LOGIN ALERT", fill=(255, 255, 255))
+    draw.text((25, 95), "EXPIRING CREDENTIAL - ENTER OTP", fill=(200, 20, 20))
     path = os.path.join(IMG_DIR, "suspicious_spoofed_login_portal.png")
     img.save(path)
     return path
 
 
 def make_benign_ci_cd_log():
-    img = Image.new("RGB", (256, 256), color=(15, 18, 25))
+    gen = ForensicDatasetGenerator(seed=101)
+    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
     draw = ImageDraw.Draw(img)
-    draw.text((20, 20), "$ git status --short", fill=(100, 220, 120))
-    draw.text((20, 42), "nothing to commit, working tree clean", fill=(180, 190, 205))
-    draw.text((20, 70), "$ python -m pytest -q", fill=(100, 220, 120))
-    draw.text((20, 92), ".................................... [100%]", fill=(100, 220, 120))
-    draw.text((20, 114), "69 passed, 2 warnings in 10.92s", fill=(100, 220, 120))
-    draw.text((20, 145), "$ docker build -t forensightx:v1.0 .", fill=(100, 220, 120))
-    draw.text((20, 167), "[+] Building 4.8s (12/12) FINISHED", fill=(180, 190, 205))
-    draw.text((20, 190), "Successfully tagged forensightx:v1.0", fill=(100, 220, 120))
-    draw.text((20, 215), "STATUS: HEALTHY - DEPLOYED", fill=(60, 180, 240))
+    draw.text((25, 45), "CI/CD BUILD SUCCESS: 69/69 PASS", fill=(30, 120, 50))
     path = os.path.join(IMG_DIR, "benign_ci_cd_deployment_log.png")
     img.save(path)
     return path
 
 
 def make_benign_dashboard_screenshot():
-    img = Image.new("RGB", (256, 256), color=(248, 249, 252))
+    gen = ForensicDatasetGenerator(seed=202)
+    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([15, 15, 241, 50], fill=(230, 235, 245))
-    draw.text((25, 25), "System Health Monitor: US-East-1", fill=(30, 40, 60))
-    # Metric cards
-    draw.rectangle([25, 65, 125, 125], fill=(255, 255, 255), outline=(210, 220, 235))
-    draw.text((35, 75), "CPU Load", fill=(100, 110, 130))
-    draw.text((35, 95), "18.4% (OK)", fill=(30, 160, 80))
-
-    draw.rectangle([135, 65, 235, 125], fill=(255, 255, 255), outline=(210, 220, 235))
-    draw.text((145, 75), "Memory", fill=(100, 110, 130))
-    draw.text((145, 95), "4.1 GB / 16GB", fill=(30, 160, 80))
-
-    draw.rectangle([25, 140, 235, 225], fill=(255, 255, 255), outline=(210, 220, 235))
-    draw.text((35, 150), "Service Availability Status", fill=(80, 90, 110))
-    draw.text((35, 172), "API Gateway: 100.0%", fill=(30, 160, 80))
-    draw.text((35, 192), "Model Worker Pools: 100.0%", fill=(30, 160, 80))
+    draw.text((25, 45), "SYSTEM METRICS NORMAL - 100% HEALTHY", fill=(30, 120, 50))
     path = os.path.join(IMG_DIR, "benign_system_dashboard.png")
     img.save(path)
     return path

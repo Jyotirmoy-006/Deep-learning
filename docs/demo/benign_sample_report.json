@@ -2,13 +2,13 @@
   "case_id": "CASE-FS-2026-BENIGN",
   "title": "Routine IT Maintenance & Standup Audit",
   "investigator": "Lead Forensic Agent",
-  "timestamp_generated": "2026-11-05T22:43:12.070416",
+  "timestamp_generated": "2026-11-05T23:05:02.747577",
   "evidence_inventory": [
     {
       "item_index": 0,
       "evidence_id": "EVID-101",
       "evidence_type": "email",
-      "timestamp": "2026-11-05T21:43:12.005283",
+      "timestamp": "2026-11-05T22:05:02.682051",
       "is_observed": true,
       "summary": "{'sender': 'lead-dev@company.internal', 'display_name': 'Dev Team Lead', 'reply_..."
     },
@@ -16,7 +16,7 @@
       "item_index": 1,
       "evidence_id": "EVID-102",
       "evidence_type": "chat",
-      "timestamp": "2026-11-05T21:53:12.005283",
+      "timestamp": "2026-11-05T22:15:02.682051",
       "is_observed": true,
       "summary": "Are we still on for the 2 PM sprint planning meeting? Team lunch is scheduled fo..."
     },
@@ -24,7 +24,7 @@
       "item_index": 2,
       "evidence_id": "EVID-103",
       "evidence_type": "image",
-      "timestamp": "2026-11-05T22:03:12.005283",
+      "timestamp": "2026-11-05T22:25:02.682051",
       "is_observed": true,
       "summary": "uploads\\CASE-FS-2026-BENIGN_EVID-103.png"
     }
@@ -51,7 +51,7 @@
   "risk_tier": "LOW",
   "chronological_timeline": [
     {
-      "timestamp": "2026-11-05T21:43:12.005283",
+      "timestamp": "2026-11-05T22:05:02.682051",
       "description": "Email event logged: Subject 'Project deployment went smoothly'",
       "source_evidence_id": "EVID-101",
       "event_type": "observed",
@@ -61,7 +61,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T21:53:12.005283",
+      "timestamp": "2026-11-05T22:15:02.682051",
       "description": "Chat communication recorded: 'Are we still on for the 2 PM sprint planning meeting? Team l...'",
       "source_evidence_id": "EVID-102",
       "event_type": "observed",
@@ -71,7 +71,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T22:03:12.005283",
+      "timestamp": "2026-11-05T22:25:02.682051",
       "description": "Visual artifact/screenshot recorded (`EVID-103`)",
       "source_evidence_id": "EVID-103",
       "event_type": "observed",
@@ -81,7 +81,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T22:03:12.005283",
+      "timestamp": "2026-11-05T22:25:02.682051",
       "description": "Inferred Incident Trajectory: span of 1200.0s between initiation and final logged event.",
       "source_evidence_id": "INFERRED-MAS-01",
       "event_type": "inferred",
