@@ -1,0 +1,21 @@
+[project]
+name = "forensightx"
+version = "1.0.0"
+description = "Multimodal Digital Forensics Decision Support Platform"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "pydantic>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.2.0",
+    "pandas>=2.0.0",
+    "pillow>=9.5.0",
+    "pyyaml>=6.0",
+    "torch>=2.1.0",
+]
+
+[tool.vercel]
+entrypoint = "src.api:app"

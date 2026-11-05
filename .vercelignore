@@ -1,0 +1,15 @@
+# Vercel deployment ignore file
+.git
+.github
+tests/
+docs/
+.pytest_cache/
+*.pyc
+__pycache__/
+*.log
+.coverage
+htmlcov/
+venv/
+.venv/
+env/
+*.db

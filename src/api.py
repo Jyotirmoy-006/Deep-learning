@@ -47,8 +47,12 @@ logger = logging.getLogger("forensightx.api")
 # Database Setup (SQLite for prototype per docx Section 11)
 # =====================================================================
 
-DB_PATH = "forensightx.db"
-UPLOADS_DIR = "uploads"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IS_SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+DATA_DIR = "/tmp" if IS_SERVERLESS else BASE_DIR
+
+DB_PATH = os.path.join(DATA_DIR, "forensightx.db")
+UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def init_db():
@@ -110,7 +114,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODELS_DIR = "models_saved"
+MODELS_DIR = os.path.join(BASE_DIR, "models_saved")
 missing_checkpoints: List[str] = []
 
 tokenizer = ForensicTokenizer(max_length=80)
@@ -544,19 +548,19 @@ def get_gradcam_image(case_id: str, evidence_id: str):
 @app.get("/api/experiments")
 def get_experimental_results():
     """Returns experimental results JSON for backward compatibility."""
-    v10_path = os.path.join("results", "experiment_results_v10.json")
+    v10_path = os.path.join(BASE_DIR, "results", "experiment_results_v10.json")
     if os.path.exists(v10_path):
         with open(v10_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {"status": "completed", "version": "v10", "results": data}
 
-    v9_path = os.path.join("results", "experiment_results_v9.json")
+    v9_path = os.path.join(BASE_DIR, "results", "experiment_results_v9.json")
     if os.path.exists(v9_path):
         with open(v9_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {"status": "completed", "version": "v9", "results": data}
 
-    results_path = os.path.join("results", "experiment_results.json")
+    results_path = os.path.join(BASE_DIR, "results", "experiment_results.json")
     if not os.path.exists(results_path):
         return {"status": "pending", "message": "Run investigations to generate experimental metrics"}
     with open(results_path, "r", encoding="utf-8") as f:
@@ -571,7 +575,7 @@ def get_results_v10():
     Strictly reads results/experiment_results_v10.json dynamically.
     No typed or hardcoded numbers.
     """
-    results_path = os.path.join("results", "experiment_results_v10.json")
+    results_path = os.path.join(BASE_DIR, "results", "experiment_results_v10.json")
     if not os.path.exists(results_path):
         raise HTTPException(status_code=404, detail="results/experiment_results_v10.json not found")
 

@@ -13,7 +13,7 @@ from PIL import Image
 sys.path.insert(0, os.path.abspath("."))
 
 from fastapi.testclient import TestClient
-from src.api import app
+from src.api import app as fastapi_app
 from run_investigation import create_sample_case, load_or_init_models
 from src.agents import CaseCoordinatorAgent
 
@@ -26,7 +26,7 @@ def run_smoke_demo():
     print("ForenSightX - Running Smoke Demo & Endpoint Verification")
     print("=" * 70)
 
-    client = TestClient(app)
+    client = TestClient(fastapi_app)
     results_ledger = {}
 
     # 1. Health Check

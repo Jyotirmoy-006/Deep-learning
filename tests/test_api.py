@@ -12,9 +12,9 @@ Verifies FastAPI endpoints:
 import uuid
 import pytest
 from fastapi.testclient import TestClient
-from src.api import app
+from src.api import app as fastapi_app
 
-client = TestClient(app)
+client = TestClient(fastapi_app)
 
 
 def test_api_health_check():
