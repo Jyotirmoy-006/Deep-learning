@@ -169,6 +169,42 @@ def create_sample_case(case_type: str = "suspicious") -> ForensicCase:
     return case
 
 
+def load_case_from_json(json_path: str) -> ForensicCase:
+    """Loads a ForensicCase from an exported or structured JSON case file."""
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    case = ForensicCase(
+        case_id=data.get("case_id", "CASE-CUSTOM"),
+        title=data.get("title", "Custom Digital Forensics Investigation"),
+        investigator=data.get("investigator", "Lead Forensic Examiner"),
+        created_at=data.get("created_at", datetime.now().isoformat()),
+    )
+
+    for item in data.get("evidence_items", []):
+        ev_type = item.get("evidence_type", "chat")
+        content = item.get("content", "")
+        # If image path on disk, load PIL image
+        if ev_type == "image" and isinstance(content, str) and os.path.exists(content):
+            try:
+                content = Image.open(content).convert("RGB")
+            except Exception as e:
+                print(f"[!] Warning: Failed to load image from {content}: {e}")
+
+        case.evidence_items.append(
+            EvidenceItem(
+                evidence_id=item.get("evidence_id", f"EVID-{len(case.evidence_items)+1:03d}"),
+                evidence_type=ev_type,
+                timestamp=item.get("timestamp", datetime.now().isoformat()),
+                content=content,
+                metadata=item.get("metadata", {}),
+                is_observed=item.get("is_observed", True),
+            )
+        )
+
+    return case
+
+
 def main():
     parser = argparse.ArgumentParser(description="ForenSightX Multi-Agent Investigation Runner")
     parser.add_argument(
@@ -176,6 +212,11 @@ def main():
         choices=["suspicious", "benign"],
         default="suspicious",
         help="Type of sample forensic case to simulate",
+    )
+    parser.add_argument(
+        "--case-file",
+        default=None,
+        help="Path to custom JSON forensic case file to investigate",
     )
     parser.add_argument(
         "--output-md",
@@ -202,8 +243,12 @@ def main():
         tokenizer=tokenizer,
     )
 
-    print(f"[*] Assembling sample case ({args.case_type.upper()})...")
-    case = create_sample_case(case_type=args.case_type)
+    if args.case_file:
+        print(f"[*] Loading custom case from '{args.case_file}'...")
+        case = load_case_from_json(args.case_file)
+    else:
+        print(f"[*] Assembling sample case ({args.case_type.upper()})...")
+        case = create_sample_case(case_type=args.case_type)
     print(f"[*] Case ID: {case.case_id} with {len(case.evidence_items)} evidence items.")
 
     print(f"[*] Commencing collaborative multi-agent investigation...")

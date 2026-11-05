@@ -1,0 +1,14 @@
+{
+  "headers": {
+    "From": "\"Project Coordinator\" <coordinator@company.internal>",
+    "To": "investigations-team@company.internal",
+    "Reply-To": "coordinator@company.internal",
+    "Subject": "Invitation: Architecture & Technical Review @ Fri Nov 6, 2026 2pm - 3pm (EDT)",
+    "Date": "Thu, 05 Nov 2026 13:45:00 -0400",
+    "Authentication-Results": "spf=pass; dkim=pass header.d=company.internal"
+  },
+  "body": "Hello Investigations Team,\n\nYou are invited to the upcoming technical review meeting:\nTopic: ForenSightX Multimodal Forensic Architecture & Syllabus Mapping\nTime: Friday, November 6, 2026 \u00b7 2:00 \u2013 3:00pm\n\nMeeting link: https://meet.company.internal/fx-arch-review\n\nAgenda:\n1. Multimodal neural representation analysis\n2. Baseline comparisons (Arms A-E)\n3. Live dashboard walkthrough",
+  "attachments": [
+    "agenda_nov6.pdf"
+  ]
+}

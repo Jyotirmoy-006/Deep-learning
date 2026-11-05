@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "From": "\"Chief Executive Officer\" <ceo-desk@free-secure-mail.xyz>",
+    "To": "finance-ops@company.internal",
+    "Reply-To": "executive-direct-response@mail-gateway.top",
+    "Subject": "URGENT: Immediate Confidential Wire Transfer Required for Project Titan",
+    "Date": "Thu, 05 Nov 2026 14:15:00 -0400",
+    "Authentication-Results": "spf=softfail (sender IP 198.51.100.42 not in SPF record); dkim=neutral",
+    "X-Priority": "1 (Highest)",
+    "X-Mailer": "PHPMailer 6.2.0 (https://github.com/PHPMailer/PHPMailer)"
+  },
+  "body": "Dear Finance Team,\n\nDue to an urgent deadline regarding the acquisition of Project Titan, please process the attached wire instruction immediately.\nWire Amount: $485,000.00 USD\nBeneficiary: Offshore Holdings Ltd (Cayman Islands)\nAccount: 8829-1029-4410\nPlease confirm transmission by opening the secure escrow link: http://wire-verification-portal.xyz/confirm\n\nRegards,\nChief Executive Officer",
+  "attachments": [
+    "Invoice_Wire_485K.pdf.exe"
+  ]
+}

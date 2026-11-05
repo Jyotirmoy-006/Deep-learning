@@ -1,0 +1,6 @@
+[09:15:20] IT Security Support: ATTENTION: Unusual sign-in attempt detected from IP 185.220.101.4 (Saint Petersburg, RU).
+[09:16:01] Employee: Wait, that wasn't me! What should I do?
+[09:16:35] IT Security Support: We are initiating account containment. A 6-digit one-time password (OTP) verification code has just been sent to your registered mobile phone number.
+[09:17:10] IT Security Support: Please read back the 6-digit code to me immediately to authenticate your session and prevent permanent credential revocation.
+[09:17:42] Employee: The code says 894-102. Is my account safe now?
+[09:18:05] IT Security Support: Authentication confirmed. Access credentials updated. Please download the corporate security patch from: http://it-support-portal.top/patch_update.exe

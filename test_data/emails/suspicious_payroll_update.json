@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "From": "\"Human Resources Portal\" <hr-service@corporate-payroll-update.top>",
+    "To": "all-staff@company.internal",
+    "Reply-To": "payroll-collector@protonmail.com",
+    "Subject": "ACTION REQUIRED: Direct Deposit Banking Information Verification Deadline",
+    "Date": "Thu, 05 Nov 2026 08:30:15 -0500",
+    "Authentication-Results": "spf=fail (domain corporate-payroll-update.top fails SPF); dkim=none",
+    "X-Priority": "1 (Highest)"
+  },
+  "body": "All Employees,\n\nOur payroll system requires immediate re-verification of all employee direct deposit bank accounts prior to the end of this pay cycle.\nFailure to authenticate your banking credentials within 24 hours will result in paycheck withholding.\n\nClick here to submit your direct deposit credentials: http://payroll-login-portal.xyz/auth\n\nHuman Resources Management",
+  "attachments": [
+    "direct_deposit_form.scr"
+  ]
+}

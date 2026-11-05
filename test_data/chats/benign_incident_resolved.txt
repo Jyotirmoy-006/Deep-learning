@@ -1,0 +1,4 @@
+[16:20:10] DevOps Engineer: Monitoring alert: High memory utilization on cache worker node redis-02.
+[16:21:40] SRE Lead: Investigating now. It looks like the TTL on temporary session keys was misconfigured during the morning migration.
+[16:23:05] SRE Lead: Applied the TTL patch via config map. Cache evicted 1.4 GB of expired keys. Memory usage dropped back to 22%.
+[16:25:00] DevOps Engineer: Verified alert has cleared. All health metrics green in Datadog dashboard. Post-mortem scheduled for tomorrow morning.

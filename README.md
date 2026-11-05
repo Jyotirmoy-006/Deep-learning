@@ -229,6 +229,13 @@ Deep-learning/
 │       ├── __init__.py
 │       └── metrics.py                 # Confusion matrices, AUC, bootstrap CIs
 │
+├── test_data/                         # Ready-to-use sample evidence for testing the dashboard
+│   ├── README.md                      # Testing walkthrough guide
+│   ├── images/                        # Suspicious & benign screenshots and invoices
+│   ├── chats/                         # Suspicious & benign chat transcripts
+│   ├── emails/                        # Phishing & legitimate email JSON files
+│   └── cases/                         # Complete multimodal incident cases
+│
 └── tests/                             # Comprehensive test suite (69 tests)
     ├── test_api.py                    # Endpoints, dashboard, file uploads, validation (5 tests)
     ├── test_forensightx.py            # Neural networks, Grad-CAM, agents, pipeline (8 tests)
@@ -293,10 +300,22 @@ python scripts/smoke_demo.py
 ```
 This runs an end-to-end audit: checks health, loads samples, runs investigations, verifies Grad-CAM output, tests evidence upload, and stores fallback artifacts in `docs/demo/`.
 
+### Testing Sample Evidence in the Dashboard (`test_data/`)
+The `test_data/` folder provides ready-to-test digital forensic artifacts:
+- **Visual Evidence (Images):** In the dashboard's *"Ingest New Evidence"* card, select **"Image (Screenshot)"** and upload `test_data/images/suspicious_wire_transfer_invoice.png`. Run investigation to see the CNN score jump to 100% and view the **Grad-CAM heatmap** overlaid directly on the tampered wire amount.
+- **Chat Transcripts (Text):** Select **"Chat (Text)"**, paste from `test_data/chats/suspicious_ceo_urgent_wire.txt`, and click *"Add Evidence to Active Case"*.
+- **Phishing Emails (Headers + Body):** Select **"Email (Text/JSON)"**, paste from `test_data/emails/suspicious_wire_fraud_email.json`.
+- See [`test_data/README.md`](test_data/README.md) for detailed test scenarios.
+
 ### Running Investigations via CLI
-Investigate a single case file from the command line:
+Investigate a pre-packaged sample or custom JSON case file from the command line:
 ```bash
-python run_investigation.py --case docs/demo/suspicious_sample_report.json
+# Run investigation on sample case (suspicious or benign)
+python run_investigation.py --case-type suspicious
+
+# Run investigation directly on a structured JSON case file
+python run_investigation.py --case-file test_data/cases/case_suspicious_ceo_wire_fraud.json
+python run_investigation.py --case-file test_data/cases/case_benign_devops_maintenance.json
 ```
 
 ### Training Models

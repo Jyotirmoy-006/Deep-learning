@@ -9,9 +9,7 @@ dataset:
   val_ratio: 0.16666666666666666    # 200 cases
   test_ratio: 0.25                  # 300 cases (meets min_test_cases >= 300)
   min_test_cases: 300               # ASSUMPTION-06
-  manifest_path_v1: "data/split_manifest_hard_v1.json"
-  manifest_path: "data/split_manifest_hard_v2.json"
-  manifest_path_v3: "data/split_manifest_hard_v3.json"
+  manifest_path: "data/split_manifest_hard_v4.json"
   manifest_path_v4: "data/split_manifest_hard_v4.json"
   min_families_per_split:
     train: 4

@@ -1,0 +1,48 @@
+{
+  "case_id": "CASE-TEST-2026-SUSP",
+  "title": "Business Email Compromise & Wire Fraud Incident",
+  "investigator": "Forensic Analyst",
+  "created_at": "2026-11-05T21:40:18.122184",
+  "evidence_items": [
+    {
+      "evidence_id": "EVID-001",
+      "evidence_type": "email",
+      "timestamp": "2026-11-05T20:55:18.122184",
+      "content": "Dear Finance Team,\n\nDue to an urgent deadline regarding the acquisition of Project Titan, please process the attached wire instruction immediately.\nWire Amount: $485,000.00 USD\nBeneficiary: Offshore Holdings Ltd (Cayman Islands)\nAccount: 8829-1029-4410\nPlease confirm transmission by opening the secure escrow link: http://wire-verification-portal.xyz/confirm\n\nRegards,\nChief Executive Officer",
+      "metadata": {
+        "From": "\"Chief Executive Officer\" <ceo-desk@free-secure-mail.xyz>",
+        "To": "finance-ops@company.internal",
+        "Reply-To": "executive-direct-response@mail-gateway.top",
+        "Subject": "URGENT: Immediate Confidential Wire Transfer Required for Project Titan",
+        "Date": "Thu, 05 Nov 2026 14:15:00 -0400",
+        "Authentication-Results": "spf=softfail (sender IP 198.51.100.42 not in SPF record); dkim=neutral",
+        "X-Priority": "1 (Highest)",
+        "X-Mailer": "PHPMailer 6.2.0 (https://github.com/PHPMailer/PHPMailer)"
+      },
+      "is_observed": true
+    },
+    {
+      "evidence_id": "EVID-002",
+      "evidence_type": "chat",
+      "timestamp": "2026-11-05T21:10:18.122184",
+      "content": "[14:02:11] Chief Executive Officer: Are you available right now? I am currently in a closed-door board meeting.\n[14:02:45] Finance Lead: Yes, sir. How can I assist you?\n[14:03:15] Chief Executive Officer: We are closing a highly confidential international acquisition. I need an immediate wire transfer of $485,000 processed to our overseas escrow account before 3:30 PM cutoff.\n[14:04:02] Finance Lead: Understood. Should I initiate the standard dual-authorization protocol through the portal?\n[14:04:30] Chief Executive Officer: Negative. Standard protocol will delay closing. I have authorized this under executive emergency powers. Do NOT contact other directors as strict confidentiality applies under SEC regulations. Forward payment confirmation immediately upon transmission: http://secure-escrow-update.xyz/verify-token\n",
+      "metadata": {
+        "platform": "Slack",
+        "channel": "direct-message",
+        "urgency": "high"
+      },
+      "is_observed": true
+    },
+    {
+      "evidence_id": "EVID-003",
+      "evidence_type": "image",
+      "timestamp": "2026-11-05T21:25:18.122184",
+      "content": "test_data/images/suspicious_wire_transfer_invoice.png",
+      "metadata": {
+        "filename": "suspicious_wire_transfer_invoice.png",
+        "source": "workstation_download"
+      },
+      "is_observed": true
+    }
+  ]
+}

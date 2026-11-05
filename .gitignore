@@ -2,6 +2,8 @@
 *.db
 checkpoints/
 results/large/
+results/investigation_report.*
+results/benign_report.*
 .pytest_cache/
 __pycache__/
 *.pyc
