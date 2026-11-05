@@ -34,6 +34,14 @@ from src.data_loader import ForensicDatasetGenerator
 # 1. Generate Images
 # =====================================================================
 
+def safe_save(img, path):
+    tmp = path + "_tmp.png"
+    img.save(tmp, format="PNG")
+    if os.path.exists(path):
+        os.remove(path)
+    os.replace(tmp, path)
+
+
 def make_suspicious_wire_invoice():
     gen = ForensicDatasetGenerator(seed=99)
     img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
@@ -41,7 +49,7 @@ def make_suspicious_wire_invoice():
     draw.text((25, 38), "WIRE INVOICE #88219", fill=(255, 255, 255))
     draw.text((25, 95), "URGENT WIRE $48,500 - OVERSEAS VENDOR", fill=(200, 20, 20))
     path = os.path.join(IMG_DIR, "suspicious_wire_transfer_invoice.png")
-    img.save(path)
+    safe_save(img, path)
     return path
 
 
@@ -52,7 +60,40 @@ def make_suspicious_login_portal():
     draw.text((25, 38), "SSO LOGIN ALERT", fill=(255, 255, 255))
     draw.text((25, 95), "EXPIRING CREDENTIAL - ENTER OTP", fill=(200, 20, 20))
     path = os.path.join(IMG_DIR, "suspicious_spoofed_login_portal.png")
-    img.save(path)
+    safe_save(img, path)
+    return path
+
+
+def make_suspicious_ransomware_demand():
+    gen = ForensicDatasetGenerator(seed=55)
+    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 38), "CRITICAL: RANSOMWARE LOCK", fill=(255, 255, 255))
+    draw.text((25, 95), "PAY 2.5 BITCOIN WITHIN 24 HOURS", fill=(200, 20, 20))
+    path = os.path.join(IMG_DIR, "suspicious_ransomware_demand.png")
+    safe_save(img, path)
+    return path
+
+
+def make_suspicious_fake_security_alert():
+    gen = ForensicDatasetGenerator(seed=77)
+    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 38), "SECURITY ALERT: TROJAN DETECTED", fill=(255, 255, 255))
+    draw.text((25, 95), "CALL SUPPORT NOW: 1-800-555-0199", fill=(200, 20, 20))
+    path = os.path.join(IMG_DIR, "suspicious_fake_security_alert.png")
+    safe_save(img, path)
+    return path
+
+
+def make_suspicious_tampered_executive_memo():
+    gen = ForensicDatasetGenerator(seed=88)
+    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 38), "CONFIDENTIAL WIRE AUTHORIZATION", fill=(255, 255, 255))
+    draw.text((25, 95), "DISBURSE $1,450,000 USD TO CAYMAN TRUST", fill=(200, 20, 20))
+    path = os.path.join(IMG_DIR, "suspicious_tampered_executive_memo.png")
+    safe_save(img, path)
     return path
 
 
@@ -62,7 +103,7 @@ def make_benign_ci_cd_log():
     draw = ImageDraw.Draw(img)
     draw.text((25, 45), "CI/CD BUILD SUCCESS: 69/69 PASS", fill=(30, 120, 50))
     path = os.path.join(IMG_DIR, "benign_ci_cd_deployment_log.png")
-    img.save(path)
+    safe_save(img, path)
     return path
 
 
@@ -72,7 +113,37 @@ def make_benign_dashboard_screenshot():
     draw = ImageDraw.Draw(img)
     draw.text((25, 45), "SYSTEM METRICS NORMAL - 100% HEALTHY", fill=(30, 120, 50))
     path = os.path.join(IMG_DIR, "benign_system_dashboard.png")
-    img.save(path)
+    safe_save(img, path)
+    return path
+
+
+def make_benign_slack_team_chat():
+    gen = ForensicDatasetGenerator(seed=303)
+    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 45), "SLACK: #ENGINEERING - SPRINT STANDUP 2PM", fill=(30, 120, 50))
+    path = os.path.join(IMG_DIR, "benign_slack_team_chat.png")
+    safe_save(img, path)
+    return path
+
+
+def make_benign_vendor_receipt_pdf():
+    gen = ForensicDatasetGenerator(seed=404)
+    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 45), "ACROBAT PDF: AWS INVOICE OCT 2026 PAID", fill=(30, 120, 50))
+    path = os.path.join(IMG_DIR, "benign_vendor_receipt_pdf.png")
+    safe_save(img, path)
+    return path
+
+
+def make_benign_vscode_editor_diff():
+    gen = ForensicDatasetGenerator(seed=505)
+    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
+    draw = ImageDraw.Draw(img)
+    draw.text((25, 45), "VS CODE: TEST_REGRESSION.PY PASS", fill=(30, 120, 50))
+    path = os.path.join(IMG_DIR, "benign_vscode_editor_diff.png")
+    safe_save(img, path)
     return path
 
 
@@ -309,11 +380,17 @@ This directory contains realistic digital forensic evidence samples designed spe
 
 ```text
 test_data/
-├── images/                                # Realistic digital screenshots & invoices
+├── images/                                # Realistic digital screenshots & forensic visual artifacts
 │   ├── suspicious_wire_transfer_invoice.png   # Tampered banking wire invoice with altered amount and urgent stamp
 │   ├── suspicious_spoofed_login_portal.png    # Spoofed SSO login portal with credential harvesting prompts
+│   ├── suspicious_ransomware_demand.png       # LockBit ransomware demand screen demanding 2.5 BTC
+│   ├── suspicious_fake_security_alert.png     # Fake Windows Defender / CrowdStrike trojan alert scam
+│   ├── suspicious_tampered_executive_memo.png # Spliced CEO signature on confidential acquisition memo
 │   ├── benign_ci_cd_deployment_log.png        # Clean terminal output (git commit, pytest passing 69/69)
-│   └── benign_system_dashboard.png            # Clean server metrics & health monitoring screenshot
+│   ├── benign_system_dashboard.png            # Clean server metrics & health monitoring screenshot
+│   ├── benign_slack_team_chat.png             # Clean Slack developer channel standup conversation
+│   ├── benign_vendor_receipt_pdf.png          # Clean Adobe Acrobat AWS hosting statement (PAID)
+│   └── benign_vscode_editor_diff.png          # Clean Visual Studio Code regression test window
 │
 ├── chats/                                 # Chat communication transcripts
 │   ├── suspicious_ceo_urgent_wire.txt         # Urgent CEO impersonation requesting confidential wire transfer
@@ -428,8 +505,15 @@ with open(os.path.join(TEST_DATA_DIR, "README.md"), "w", encoding="utf-8") as f:
 # Run image creation
 make_suspicious_wire_invoice()
 make_suspicious_login_portal()
+make_suspicious_ransomware_demand()
+make_suspicious_fake_security_alert()
+make_suspicious_tampered_executive_memo()
+
 make_benign_ci_cd_log()
 make_benign_dashboard_screenshot()
+make_benign_slack_team_chat()
+make_benign_vendor_receipt_pdf()
+make_benign_vscode_editor_diff()
 
-print("All test data generated successfully in test_data/!")
+print("All 10 test images and case data generated successfully in test_data/!")
 

@@ -8,11 +8,17 @@ This directory contains realistic digital forensic evidence samples designed spe
 
 ```text
 test_data/
-├── images/                                # Realistic digital screenshots & invoices
+├── images/                                # Realistic digital screenshots & forensic visual artifacts
 │   ├── suspicious_wire_transfer_invoice.png   # Tampered banking wire invoice with altered amount and urgent stamp
 │   ├── suspicious_spoofed_login_portal.png    # Spoofed SSO login portal with credential harvesting prompts
+│   ├── suspicious_ransomware_demand.png       # LockBit ransomware demand screen demanding 2.5 BTC
+│   ├── suspicious_fake_security_alert.png     # Fake Windows Defender / CrowdStrike trojan alert scam
+│   ├── suspicious_tampered_executive_memo.png # Spliced CEO signature on confidential acquisition memo
 │   ├── benign_ci_cd_deployment_log.png        # Clean terminal output (git commit, pytest passing 69/69)
-│   └── benign_system_dashboard.png            # Clean server metrics & health monitoring screenshot
+│   ├── benign_system_dashboard.png            # Clean server metrics & health monitoring screenshot
+│   ├── benign_slack_team_chat.png             # Clean Slack developer channel standup conversation
+│   ├── benign_vendor_receipt_pdf.png          # Clean Adobe Acrobat AWS hosting statement (PAID)
+│   └── benign_vscode_editor_diff.png          # Clean Visual Studio Code regression test window
 │
 ├── chats/                                 # Chat communication transcripts
 │   ├── suspicious_ceo_urgent_wire.txt         # Urgent CEO impersonation requesting confidential wire transfer
