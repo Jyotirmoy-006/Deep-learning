@@ -471,3 +471,4 @@ make_benign_ci_cd_log()
 make_benign_dashboard_screenshot()
 
 print("All test data generated successfully in test_data/!")
+

@@ -675,7 +675,7 @@ def serve_dashboard():
                 </div>
                 <div>
                     <h1 class="text-base font-bold tracking-wide text-white flex items-center gap-2">
-                        FORENSIGHTX <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono font-semibold">Demo Ready</span>
+                        FORENSIGHTX <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono font-semibold">Live System</span>
                     </h1>
                     <p class="text-xs text-slate-400">Multimodal Digital Forensics Decision Support Platform</p>
                 </div>
@@ -713,47 +713,69 @@ def serve_dashboard():
                 <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Pre-Packaged Samples
+                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Pre-Packaged Cases
                         </h2>
-                        <p class="text-xs text-slate-400 mb-3">Load standard benchmark cases for instant evaluation.</p>
+                        <p class="text-xs text-slate-400 mb-3">Load benchmark samples or reset to a fresh case.</p>
                         <div class="flex flex-col gap-2">
+                            <button onclick="loadSample('benign')" class="w-full py-2 px-3 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/80 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Load benign sample
+                            </button>
                             <button onclick="loadSample('suspicious')" class="w-full py-2 px-3 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/80 text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
                                 <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Load suspicious sample
                             </button>
-                            <button onclick="loadSample('benign')" class="w-full py-2 px-3 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/80 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Load benign sample
+                            <button onclick="clearCase()" class="w-full py-1.5 px-3 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-broom text-slate-400"></i> Start New / Clear Case
                             </button>
                         </div>
                     </div>
                     <div class="mt-3 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex justify-between">
-                        <span>Current Case:</span>
-                        <span id="activeCaseBadge" class="font-mono text-slate-200 font-bold truncate max-w-[150px]">None loaded</span>
+                        <span>Active Case:</span>
+                        <span id="activeCaseBadge" class="font-mono text-slate-200 font-bold truncate max-w-[160px]">None loaded</span>
                     </div>
                 </div>
 
                 <!-- Card 2: Manual Upload & Evidence Ingestion -->
                 <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Ingest New Evidence
-                        </h2>
-                        <p class="text-xs text-slate-400 mb-2">Attach custom text, email or image screenshot.</p>
+                        <div class="flex items-center justify-between mb-1">
+                            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Ingest New Evidence
+                            </h2>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-2">Test custom text, email headers, or image files.</p>
                         
                         <div class="space-y-2">
                             <div class="flex gap-1 text-xs">
                                 <select id="uploadTypeSelect" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                                    <option value="image">Image (Screenshot)</option>
                                     <option value="chat">Chat (Text)</option>
                                     <option value="email">Email (Text/JSON)</option>
+                                    <option value="image">Image (Screenshot)</option>
                                 </select>
                                 <input type="file" id="evidenceFileInput" class="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
                             </div>
-                            <textarea id="textEvidenceInput" placeholder="Or paste message text / headers here..." class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 h-14 resize-none"></textarea>
+
+                            <!-- Quick Fill Templates -->
+                            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                                <span>Quick Templates:</span>
+                                <div class="flex gap-1">
+                                    <button type="button" onclick="insertSampleText('benign_chat')" class="px-1.5 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 text-[10px]">+ Benign Chat</button>
+                                    <button type="button" onclick="insertSampleText('benign_email')" class="px-1.5 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 text-[10px]">+ Benign Email</button>
+                                    <button type="button" onclick="insertSampleText('susp_chat')" class="px-1.5 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/80 text-[10px]">+ Fraud Chat</button>
+                                    <button type="button" onclick="insertSampleText('clear')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 text-[10px]">Clear</button>
+                                </div>
+                            </div>
+
+                            <textarea id="textEvidenceInput" placeholder="Paste conversation, email text, or headers here..." class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 h-14 resize-none"></textarea>
                         </div>
                     </div>
-                    <button onclick="handleEvidenceIngest()" class="mt-2 py-1.5 px-3 rounded-lg bg-blue-600/30 border border-blue-500/50 hover:bg-blue-600/50 text-blue-300 text-xs font-semibold transition">
-                        <i class="fa-solid fa-plus mr-1"></i> Add Evidence to Active Case
-                    </button>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="handleAnalyzeDirect()" class="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600/30 border border-emerald-500/50 hover:bg-emerald-600/50 text-emerald-300 text-xs font-semibold transition flex items-center justify-center gap-1.5" title="Run clean investigation with this evidence only">
+                            <i class="fa-solid fa-bolt"></i> Analyze In Clean Case
+                        </button>
+                        <button onclick="handleEvidenceIngest()" class="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition" title="Append to active case">
+                            <i class="fa-solid fa-plus"></i> Append
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Card 3: Execution Control & Agent Status -->
@@ -762,11 +784,12 @@ def serve_dashboard():
                         <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
                             <i class="fa-solid fa-brain text-purple-400"></i> Multi-Agent Orchestration
                         </h2>
-                        <p class="text-xs text-slate-400 mb-2">Triggers Ingestion, BiLSTM, CNN, 7D Fusion & Timeline Agents.</p>
-                        <div class="text-xs text-slate-400 space-y-1">
-                            <div class="flex justify-between"><span>BiLSTM Concat Agent:</span> <span class="text-emerald-400 font-semibold">Online (strict=True)</span></div>
-                            <div class="flex justify-between"><span>CNN Visual Agent:</span> <span class="text-emerald-400 font-semibold">Online (BCELoss)</span></div>
-                            <div class="flex justify-between"><span>7D ANN Multimodal Fusion:</span> <span class="text-emerald-400 font-semibold">Online</span></div>
+                        <p class="text-xs text-slate-400 mb-2">Automated coordination across specialized neural agents.</p>
+                        <div class="text-xs text-slate-400 space-y-1.5">
+                            <div class="flex justify-between"><span>BiLSTM Linguistic Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>CNN Visual Evidence Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>7D Multimodal Risk ANN:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>Timeline Reconstruction Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
                         </div>
                     </div>
                     <button id="btnInvestigate" onclick="runInvestigation()" class="mt-3 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 flex items-center justify-center gap-2 transition">
@@ -781,23 +804,23 @@ def serve_dashboard():
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                         <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Overall Risk Score</span>
-                        <div id="riskScoreVal" class="text-4xl font-extrabold text-red-500 mt-2">--%</div>
-                        <div id="riskTierBadge" class="mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-red-950 text-red-400 border border-red-800">CRITICAL RISK</div>
+                        <div id="riskScoreVal" class="text-4xl font-extrabold text-slate-400 mt-2">--%</div>
+                        <div id="riskTierBadge" class="mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">PENDING EVALUATION</div>
                     </div>
                     <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                         <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Visual Evidence (CNN)</span>
                         <div id="cnnScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
-                        <span class="text-xs text-slate-500">Grad-CAM verified</span>
+                        <span class="text-xs text-slate-500">Grad-CAM spatial activation</span>
                     </div>
                     <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                         <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Conversation / Text (BiLSTM)</span>
                         <div id="bilstmScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
-                        <span class="text-xs text-slate-500">Concat pooling representation</span>
+                        <span class="text-xs text-slate-500">Bidirectional attention pooling</span>
                     </div>
                     <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                         <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Evidence Artifacts</span>
                         <div id="evidenceCountVal" class="text-3xl font-bold text-slate-100 mt-2">0</div>
-                        <span class="text-xs text-slate-500">Items synthesized</span>
+                        <span class="text-xs text-slate-500">Synthesized evidence items</span>
                     </div>
                 </div>
 
@@ -930,7 +953,7 @@ def serve_dashboard():
 
                 <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex justify-between">
                     <span>Results SHA-256: <code id="v10ResultsSha" class="text-slate-400">Loading...</code></span>
-                    <span>Spec Precedence: ForenSightX_Project_Architecture.docx Section 13</span>
+                    <span>Architecture: Multimodal Forensic Deep Learning Framework</span>
                 </div>
             </div>
         </div>
@@ -938,12 +961,38 @@ def serve_dashboard():
 
     <!-- Footer Notice -->
     <footer class="border-t border-slate-800 py-3 text-center text-xs text-slate-500">
-        ForenSightX Digital Forensics Prototype • Controlled Benchmark Verification • Iteration 10
+        ForenSightX Digital Forensics Intelligence Platform • Decision-Support System
     </footer>
 
     <!-- Client-Side Dashboard Script -->
     <script>
         let currentActiveCaseId = null;
+
+        const TEMPLATES = {
+            benign_chat: "Good morning team! Team lunch is at 12:30 PM today at the Italian deli downtown. Let me know if you want to join!",
+            benign_email: "Hi Engineering team, ForenSightX deployment is complete in staging. All 69 automated unit tests passed in 10.9 seconds. Release notes and API documentation are updated on the internal portal.",
+            susp_chat: "Chief Executive Officer: We are closing a highly confidential international acquisition. I need an immediate wire transfer of $485,000 processed to our overseas escrow account before 3:30 PM cutoff. Do NOT contact other directors under SEC rules: http://secure-escrow-update.xyz/verify"
+        };
+
+        function insertSampleText(type) {
+            const txtArea = document.getElementById('textEvidenceInput');
+            const select = document.getElementById('uploadTypeSelect');
+            if (type === 'clear') {
+                txtArea.value = '';
+            } else if (TEMPLATES[type]) {
+                if (type.includes('email')) select.value = 'email';
+                else select.value = 'chat';
+                txtArea.value = TEMPLATES[type];
+            }
+        }
+
+        function clearCase() {
+            currentActiveCaseId = null;
+            document.getElementById('activeCaseBadge').textContent = 'None loaded';
+            document.getElementById('investigationSection').classList.add('hidden');
+            document.getElementById('textEvidenceInput').value = '';
+            document.getElementById('evidenceFileInput').value = '';
+        }
 
         function switchTab(tab) {
             const liveView = document.getElementById('viewLive');
@@ -965,6 +1014,19 @@ def serve_dashboard():
             }
         }
 
+        async function startNewCase(title = 'Ad-Hoc Forensic Examination') {
+            const caseId = 'CASE-LIVE-' + Math.floor(1000 + Math.random() * 9000);
+            const res = await fetch('/api/cases', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({case_id: caseId, title: title, investigator: 'Forensic Examiner'})
+            });
+            if (!res.ok) throw new Error(await res.text());
+            currentActiveCaseId = caseId;
+            document.getElementById('activeCaseBadge').textContent = caseId;
+            return caseId;
+        }
+
         async function loadSample(sampleType) {
             try {
                 const res = await fetch(`/api/cases/load_sample?sample_type=${sampleType}`, { method: 'POST' });
@@ -972,25 +1034,78 @@ def serve_dashboard():
                 const data = await res.json();
                 currentActiveCaseId = data.case_id;
                 document.getElementById('activeCaseBadge').textContent = `${data.case_id} (${sampleType})`;
-                
-                // Immediately trigger investigation for interactive responsiveness
                 await runInvestigation();
             } catch (err) {
                 alert('Failed to load sample: ' + err.message);
             }
         }
 
+        async function handleAnalyzeDirect() {
+            const fileInput = document.getElementById('evidenceFileInput');
+            const typeSelect = document.getElementById('uploadTypeSelect').value;
+            const textInput = document.getElementById('textEvidenceInput').value.trim();
+
+            if (fileInput.files.length === 0 && textInput.length === 0) {
+                alert('Please enter text or select a file to analyze.');
+                return;
+            }
+
+            const isBenignHint = textInput.toLowerCase().includes('lunch') || textInput.toLowerCase().includes('deployment') || textInput.toLowerCase().includes('good morning');
+            const caseTitle = isBenignHint ? 'Benign Routine Examination' : 'Custom Evidence Investigation';
+            
+            try {
+                const caseId = await startNewCase(caseTitle);
+
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        const b64 = e.target.result;
+                        const res = await fetch(`/api/cases/${caseId}/upload_evidence`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                evidence_type: typeSelect,
+                                evidence_id: 'EVID-' + Date.now().toString().slice(-4),
+                                filename: file.name,
+                                content_b64: b64,
+                                metadata: {filename: file.name, size: file.size}
+                            })
+                        });
+                        if (!res.ok) {
+                            alert('Upload failed: ' + await res.text());
+                            return;
+                        }
+                        fileInput.value = '';
+                        await runInvestigation();
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    const res = await fetch(`/api/cases/${caseId}/upload_evidence`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            evidence_type: typeSelect,
+                            evidence_id: 'EVID-TEXT-' + Date.now().toString().slice(-4),
+                            filename: 'evidence_note.txt',
+                            text_content: textInput,
+                            metadata: {source: 'Direct User Input'}
+                        })
+                    });
+                    if (!res.ok) {
+                        alert('Failed to record text evidence: ' + await res.text());
+                        return;
+                    }
+                    await runInvestigation();
+                }
+            } catch (err) {
+                alert('Error creating clean investigation: ' + err.message);
+            }
+        }
+
         async function handleEvidenceIngest() {
             if (!currentActiveCaseId) {
-                // Auto create an active case
-                const caseId = 'CASE-LIVE-' + Date.now().toString().slice(-4);
-                await fetch('/api/cases', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({case_id: caseId, title: 'Ad-Hoc Live Examination', investigator: 'Forensic Lead'})
-                });
-                currentActiveCaseId = caseId;
-                document.getElementById('activeCaseBadge').textContent = caseId;
+                await startNewCase();
             }
 
             const fileInput = document.getElementById('evidenceFileInput');
@@ -1014,7 +1129,7 @@ def serve_dashboard():
                         })
                     });
                     if (!res.ok) alert('Upload failed: ' + await res.text());
-                    else alert('File evidence attached successfully! Click "Run Investigation".');
+                    else alert('Evidence attached! Click "Run Investigation".');
                     fileInput.value = '';
                 };
                 reader.readAsDataURL(file);
@@ -1031,7 +1146,7 @@ def serve_dashboard():
                     })
                 });
                 if (!res.ok) alert('Failed to record text evidence: ' + await res.text());
-                else alert('Text evidence recorded! Click "Run Investigation".');
+                else alert('Text evidence appended to active case! Click "Run Investigation".');
                 document.getElementById('textEvidenceInput').value = '';
             } else {
                 alert('Please select a file or enter text to ingest.');
@@ -1040,8 +1155,7 @@ def serve_dashboard():
 
         async function runInvestigation() {
             if (!currentActiveCaseId) {
-                // If nothing loaded, load suspicious sample by default
-                await loadSample('suspicious');
+                await loadSample('benign');
                 return;
             }
 
@@ -1248,8 +1362,8 @@ def serve_dashboard():
         }
 
         window.onload = async () => {
-            // Auto-load suspicious sample on initial view for live demo readiness
-            await loadSample('suspicious');
+            // Load benign sample by default for a clean, non-alarming initial state
+            await loadSample('benign');
         };
     </script>
 </body>
