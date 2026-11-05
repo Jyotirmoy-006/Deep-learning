@@ -2,13 +2,13 @@
   "case_id": "CASE-FS-2026-SUSP",
   "title": "Suspected CEO Impersonation & Wire Fraud Breach",
   "investigator": "Lead Forensic Agent",
-  "timestamp_generated": "2026-11-05T21:08:42.120125",
+  "timestamp_generated": "2026-11-05T21:34:15.992416",
   "evidence_inventory": [
     {
       "item_index": 0,
       "evidence_id": "EVID-001",
       "evidence_type": "email",
-      "timestamp": "2026-11-05T20:23:40.852757",
+      "timestamp": "2026-11-05T20:49:14.935423",
       "is_observed": true,
       "summary": "{'sender': 'ceo-desk@free-secure-mail.xyz', 'display_name': 'Chief Executive Off..."
     },
@@ -16,7 +16,7 @@
       "item_index": 1,
       "evidence_id": "EVID-002",
       "evidence_type": "chat",
-      "timestamp": "2026-11-05T20:30:40.852757",
+      "timestamp": "2026-11-05T20:56:14.935423",
       "is_observed": true,
       "summary": "Please send the one-time password (OTP) sent to your mobile phone right now to v..."
     },
@@ -24,7 +24,7 @@
       "item_index": 2,
       "evidence_id": "EVID-003",
       "evidence_type": "image",
-      "timestamp": "2026-11-05T20:38:40.852757",
+      "timestamp": "2026-11-05T21:04:14.935423",
       "is_observed": true,
       "summary": "uploads\\CASE-FS-2026-SUSP_EVID-003.png"
     }
@@ -51,7 +51,7 @@
   "risk_tier": "HIGH",
   "chronological_timeline": [
     {
-      "timestamp": "2026-11-05T20:23:40.852757",
+      "timestamp": "2026-11-05T20:49:14.935423",
       "description": "Email event logged: Subject 'URGENT: Immediate Confidential Wire Transfer Required'",
       "source_evidence_id": "EVID-001",
       "event_type": "observed",
@@ -61,7 +61,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T20:30:40.852757",
+      "timestamp": "2026-11-05T20:56:14.935423",
       "description": "Chat communication recorded: 'Please send the one-time password (OTP) sent to your mobile ...'",
       "source_evidence_id": "EVID-002",
       "event_type": "observed",
@@ -71,7 +71,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T20:38:40.852757",
+      "timestamp": "2026-11-05T21:04:14.935423",
       "description": "Visual artifact/screenshot recorded (`EVID-003`)",
       "source_evidence_id": "EVID-003",
       "event_type": "observed",
@@ -81,7 +81,7 @@
       }
     },
     {
-      "timestamp": "2026-11-05T20:38:40.852757",
+      "timestamp": "2026-11-05T21:04:14.935423",
       "description": "Inferred Incident Trajectory: span of 900.0s between initiation and final logged event.",
       "source_evidence_id": "INFERRED-MAS-01",
       "event_type": "inferred",

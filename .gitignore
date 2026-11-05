@@ -6,4 +6,15 @@ results/large/
 __pycache__/
 *.pyc
 *.pyo
+*.log
 .env
+.coverage
+htmlcov/
+.DS_Store
+Thumbs.db
+venv/
+.venv/
+env/
+uploads/*.png
+uploads/*.jpg
+uploads/*.jpeg
