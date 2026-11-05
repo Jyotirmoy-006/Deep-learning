@@ -653,38 +653,38 @@ def serve_dashboard():
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        .active-tab { border-bottom: 2px solid #10b981; color: #10b981; font-weight: 600; }
-        .inactive-tab { color: #94a3b8; }
-        .inactive-tab:hover { color: #cbd5e1; }
+        .active-tab { border-bottom: 2px solid #f59e0b; color: #f59e0b; font-weight: 600; }
+        .inactive-tab { color: #a1a1aa; }
+        .inactive-tab:hover { color: #f4f4f5; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
+<body class="bg-neutral-950 text-neutral-100 font-sans min-h-screen flex flex-col antialiased">
     <!-- Mandatory Synthetic Benchmark Banner -->
-    <div class="bg-amber-500/20 border-b border-amber-500/40 px-4 py-2 text-center text-amber-300 font-bold text-xs tracking-wider flex items-center justify-center gap-2">
+    <div class="bg-amber-950/60 border-b border-amber-600/40 px-4 py-2 text-center text-amber-300 font-bold text-xs tracking-wider flex items-center justify-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
         <span>SYNTHETIC BENCHMARK - NOT REAL-WORLD EVIDENCE • PROTOTYPE DECISION-SUPPORT PLATFORM ONLY</span>
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
     </div>
 
     <!-- Top Navigation Header -->
-    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+    <header class="border-b border-neutral-800/80 bg-neutral-900/95 backdrop-blur sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-black tracking-tighter">
+                <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black tracking-tighter">
                     FX
                 </div>
                 <div>
                     <h1 class="text-base font-bold tracking-wide text-white flex items-center gap-2">
-                        FORENSIGHTX <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono font-semibold">Live System</span>
+                        FORENSIGHTX <span class="text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700 font-mono font-semibold">Live System</span>
                     </h1>
-                    <p class="text-xs text-slate-400">Multimodal Digital Forensics Decision Support Platform</p>
+                    <p class="text-xs text-neutral-400">Multimodal Digital Forensics Decision Support Platform</p>
                 </div>
             </div>
 
             <!-- Tab Switchers -->
             <div class="flex items-center space-x-6 text-sm">
                 <button id="tabLiveBtn" onclick="switchTab('live')" class="py-2 px-1 active-tab flex items-center gap-2 transition">
-                    <i class="fa-solid fa-magnifying-glass"></i> Live Investigation
+                    <i class="fa-solid fa-crosshairs"></i> Live Investigation
                 </button>
                 <button id="tabResultsBtn" onclick="switchTab('results')" class="py-2 px-1 inactive-tab flex items-center gap-2 transition">
                     <i class="fa-solid fa-chart-line"></i> Results (Benchmark v10)
@@ -692,10 +692,10 @@ def serve_dashboard():
             </div>
 
             <div class="flex items-center space-x-3">
-                <span class="text-xs text-amber-400/90 bg-amber-950/60 border border-amber-800/80 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <span class="text-xs text-amber-400/90 bg-amber-950/50 border border-amber-800/70 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium">
                     <i class="fa-solid fa-scale-balanced text-xs"></i> Decision Support Only
                 </span>
-                <a href="/docs" target="_blank" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">API Docs</a>
+                <a href="/docs" target="_blank" class="text-xs px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 transition">API Docs</a>
             </div>
         </div>
     </header>
@@ -710,89 +710,89 @@ def serve_dashboard():
             <!-- Controls Grid: Samples, Ingestion, Run -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <!-- Card 1: Sample Case Loading -->
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Pre-Packaged Cases
+                        <h2 class="text-sm font-semibold text-neutral-200 mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-closed text-amber-400"></i> Pre-Packaged Cases
                         </h2>
-                        <p class="text-xs text-slate-400 mb-3">Load benchmark samples or reset to a fresh case.</p>
+                        <p class="text-xs text-neutral-400 mb-3">Load benchmark samples or reset to a fresh case.</p>
                         <div class="flex flex-col gap-2">
-                            <button onclick="loadSample('benign')" class="w-full py-2 px-3 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/80 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Load benign sample
+                            <button onclick="loadSample('benign')" class="w-full py-2 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-neutral-200 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-shield-halved text-neutral-400"></i> Load benign sample
                             </button>
-                            <button onclick="loadSample('suspicious')" class="w-full py-2 px-3 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/80 text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Load suspicious sample
+                            <button onclick="loadSample('suspicious')" class="w-full py-2 px-3 rounded-lg bg-red-950/50 hover:bg-red-900/60 border border-red-800/70 text-red-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Load suspicious sample
                             </button>
-                            <button onclick="clearCase()" class="w-full py-1.5 px-3 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-broom text-slate-400"></i> Start New / Clear Case
+                            <button onclick="clearCase()" class="w-full py-1.5 px-3 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-750 text-neutral-400 text-xs font-medium flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-rotate-left text-neutral-500"></i> Start New / Clear Case
                             </button>
                         </div>
                     </div>
-                    <div class="mt-3 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex justify-between">
+                    <div class="mt-3 pt-3 border-t border-neutral-800 text-[11px] text-neutral-400 flex justify-between">
                         <span>Active Case:</span>
-                        <span id="activeCaseBadge" class="font-mono text-slate-200 font-bold truncate max-w-[160px]">None loaded</span>
+                        <span id="activeCaseBadge" class="font-mono text-neutral-200 font-bold truncate max-w-[160px]">None loaded</span>
                     </div>
                 </div>
 
                 <!-- Card 2: Manual Upload & Evidence Ingestion -->
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 shadow-sm flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-1">
-                            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                                <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Ingest New Evidence
+                            <h2 class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
+                                <i class="fa-solid fa-upload text-amber-400"></i> Ingest New Evidence
                             </h2>
                         </div>
-                        <p class="text-xs text-slate-400 mb-2">Test custom text, email headers, or image files.</p>
+                        <p class="text-xs text-neutral-400 mb-2">Test custom text, email headers, or image files.</p>
                         
                         <div class="space-y-2">
                             <div class="flex gap-1 text-xs">
-                                <select id="uploadTypeSelect" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                                <select id="uploadTypeSelect" class="bg-neutral-950 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200">
                                     <option value="chat">Chat (Text)</option>
                                     <option value="email">Email (Text/JSON)</option>
                                     <option value="image">Image (Screenshot)</option>
                                 </select>
-                                <input type="file" id="evidenceFileInput" class="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+                                <input type="file" id="evidenceFileInput" class="text-xs text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-800 file:text-neutral-200 hover:file:bg-neutral-700">
                             </div>
 
                             <!-- Quick Fill Templates -->
-                            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                            <div class="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
                                 <span>Quick Templates:</span>
                                 <div class="flex gap-1">
-                                    <button type="button" onclick="insertSampleText('benign_chat')" class="px-1.5 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 text-[10px]">+ Benign Chat</button>
-                                    <button type="button" onclick="insertSampleText('benign_email')" class="px-1.5 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 text-[10px]">+ Benign Email</button>
-                                    <button type="button" onclick="insertSampleText('susp_chat')" class="px-1.5 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/80 text-[10px]">+ Fraud Chat</button>
-                                    <button type="button" onclick="insertSampleText('clear')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 text-[10px]">Clear</button>
+                                    <button type="button" onclick="insertSampleText('benign_chat')" class="px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 text-[10px] transition">+ Benign Chat</button>
+                                    <button type="button" onclick="insertSampleText('benign_email')" class="px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 text-[10px] transition">+ Benign Email</button>
+                                    <button type="button" onclick="insertSampleText('susp_chat')" class="px-1.5 py-0.5 rounded bg-red-950/70 hover:bg-red-900 text-red-300 border border-red-800/70 text-[10px] transition">+ Fraud Chat</button>
+                                    <button type="button" onclick="insertSampleText('clear')" class="px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-400 text-[10px] transition">Clear</button>
                                 </div>
                             </div>
 
-                            <textarea id="textEvidenceInput" placeholder="Paste conversation, email text, or headers here..." class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 h-14 resize-none"></textarea>
+                            <textarea id="textEvidenceInput" placeholder="Paste conversation, email text, or headers here..." class="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-neutral-200 h-14 resize-none font-mono"></textarea>
                         </div>
                     </div>
                     <div class="flex gap-2 mt-2">
-                        <button onclick="handleAnalyzeDirect()" class="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600/30 border border-emerald-500/50 hover:bg-emerald-600/50 text-emerald-300 text-xs font-semibold transition flex items-center justify-center gap-1.5" title="Run clean investigation with this evidence only">
-                            <i class="fa-solid fa-bolt"></i> Analyze In Clean Case
+                        <button onclick="handleAnalyzeDirect()" class="flex-1 py-1.5 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-750 border border-amber-500/40 text-amber-300 text-xs font-semibold transition flex items-center justify-center gap-1.5" title="Run clean investigation with this evidence only">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> Analyze In Clean Case
                         </button>
-                        <button onclick="handleEvidenceIngest()" class="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition" title="Append to active case">
+                        <button onclick="handleEvidenceIngest()" class="py-1.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-neutral-300 text-xs font-medium transition" title="Append to active case">
                             <i class="fa-solid fa-plus"></i> Append
                         </button>
                     </div>
                 </div>
 
                 <!-- Card 3: Execution Control & Agent Status -->
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-brain text-purple-400"></i> Multi-Agent Orchestration
+                        <h2 class="text-sm font-semibold text-neutral-200 mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-microchip text-amber-400"></i> Multi-Agent Orchestration
                         </h2>
-                        <p class="text-xs text-slate-400 mb-2">Automated coordination across specialized neural agents.</p>
-                        <div class="text-xs text-slate-400 space-y-1.5">
-                            <div class="flex justify-between"><span>BiLSTM Linguistic Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
-                            <div class="flex justify-between"><span>CNN Visual Evidence Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
-                            <div class="flex justify-between"><span>7D Multimodal Risk ANN:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
-                            <div class="flex justify-between"><span>Timeline Reconstruction Agent:</span> <span class="text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span></div>
+                        <p class="text-xs text-neutral-400 mb-2">Automated coordination across specialized neural agents.</p>
+                        <div class="text-xs text-neutral-400 space-y-1.5 font-mono">
+                            <div class="flex justify-between"><span>BiLSTM Linguistic Agent:</span> <span class="text-neutral-200 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>CNN Visual Evidence Agent:</span> <span class="text-neutral-200 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>7D Multimodal Risk ANN:</span> <span class="text-neutral-200 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Active</span></div>
+                            <div class="flex justify-between"><span>Timeline Reconstruction Agent:</span> <span class="text-neutral-200 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Active</span></div>
                         </div>
                     </div>
-                    <button id="btnInvestigate" onclick="runInvestigation()" class="mt-3 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 flex items-center justify-center gap-2 transition">
+                    <button id="btnInvestigate" onclick="runInvestigation()" class="mt-3 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-extrabold shadow-lg shadow-amber-950/30 flex items-center justify-center gap-2 transition tracking-wider">
                         <i class="fa-solid fa-play"></i> Run Investigation
                     </button>
                 </div>
@@ -802,32 +802,32 @@ def serve_dashboard():
             <div id="investigationSection" class="hidden space-y-6">
                 <!-- Top Metrics Row: Risk Score + Tier -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Overall Risk Score</span>
-                        <div id="riskScoreVal" class="text-4xl font-extrabold text-slate-400 mt-2">--%</div>
-                        <div id="riskTierBadge" class="mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">PENDING EVALUATION</div>
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Overall Risk Score</span>
+                        <div id="riskScoreVal" class="text-4xl font-extrabold text-neutral-400 mt-2 font-mono">--%</div>
+                        <div id="riskTierBadge" class="mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-neutral-800 text-neutral-300 border border-neutral-700">PENDING EVALUATION</div>
                     </div>
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Visual Evidence (CNN)</span>
-                        <div id="cnnScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
-                        <span class="text-xs text-slate-500">Grad-CAM spatial activation</span>
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Visual Evidence (CNN)</span>
+                        <div id="cnnScoreVal" class="text-3xl font-bold text-neutral-100 mt-2 font-mono">--%</div>
+                        <span class="text-xs text-neutral-500">Grad-CAM spatial activation</span>
                     </div>
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Conversation / Text (BiLSTM)</span>
-                        <div id="bilstmScoreVal" class="text-3xl font-bold text-slate-100 mt-2">--%</div>
-                        <span class="text-xs text-slate-500">Bidirectional attention pooling</span>
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Conversation / Text (BiLSTM)</span>
+                        <div id="bilstmScoreVal" class="text-3xl font-bold text-neutral-100 mt-2 font-mono">--%</div>
+                        <span class="text-xs text-neutral-500">Bidirectional attention pooling</span>
                     </div>
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Evidence Artifacts</span>
-                        <div id="evidenceCountVal" class="text-3xl font-bold text-slate-100 mt-2">0</div>
-                        <span class="text-xs text-slate-500">Synthesized evidence items</span>
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">Evidence Artifacts</span>
+                        <div id="evidenceCountVal" class="text-3xl font-bold text-neutral-100 mt-2 font-mono">0</div>
+                        <span class="text-xs text-neutral-500">Synthesized evidence items</span>
                     </div>
                 </div>
 
                 <!-- 7D Feature Scores Grid -->
-                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                    <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-cubes text-emerald-400"></i> The 7 Authoritative Multimodal Feature Scores
+                <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                    <h3 class="text-sm font-bold text-neutral-200 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-amber-400"></i> The 7 Authoritative Multimodal Feature Scores
                     </h3>
                     <div id="featureVectorGrid" class="grid grid-cols-2 md:grid-cols-7 gap-3 text-center"></div>
                 </div>
@@ -835,51 +835,51 @@ def serve_dashboard():
                 <!-- Timeline & Explainability Split View -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Chronological Timeline (Observed vs Inferred Labelled) -->
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                                    <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Chronological Timeline
+                                <h3 class="text-sm font-bold text-neutral-200 flex items-center gap-2">
+                                    <i class="fa-solid fa-timeline text-amber-400"></i> Chronological Timeline
                                 </h3>
-                                <span class="text-xs text-slate-400">Observed vs Inferred</span>
+                                <span class="text-xs text-neutral-400">Observed vs Inferred</span>
                             </div>
                             <div id="timelineContainer" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
                         </div>
                     </div>
 
                     <!-- Explainability: Top Indicators & Grad-CAM -->
-                    <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4">
+                    <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between space-y-4">
                         <div>
-                            <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-                                <i class="fa-solid fa-magnifying-glass-plus text-rose-400"></i> Explainability & Attribution
+                            <h3 class="text-sm font-bold text-neutral-200 mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-fingerprint text-amber-400"></i> Explainability & Attribution
                             </h3>
                             
                             <!-- Top Indicators -->
                             <div class="mb-3">
-                                <h4 class="text-xs font-semibold text-slate-400 mb-1.5">Top Forensic Indicators Flagged:</h4>
+                                <h4 class="text-xs font-semibold text-neutral-400 mb-1.5">Top Forensic Indicators Flagged:</h4>
                                 <div id="keyIndicatorsList" class="space-y-1.5"></div>
                             </div>
 
                             <!-- Salient Tokens -->
                             <div class="mb-4">
-                                <h4 class="text-xs font-semibold text-slate-400 mb-1.5">Salient Linguistic Tokens:</h4>
+                                <h4 class="text-xs font-semibold text-neutral-400 mb-1.5">Salient Linguistic Tokens:</h4>
                                 <div id="tokensList" class="flex flex-wrap gap-1.5"></div>
                             </div>
 
                             <!-- Grad-CAM Visual Heatmap Section -->
-                            <div id="gradcamSection" class="border-t border-slate-800 pt-3">
-                                <h4 class="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                            <div id="gradcamSection" class="border-t border-neutral-800 pt-3">
+                                <h4 class="text-xs font-semibold text-neutral-400 mb-2 flex items-center justify-between">
                                     <span>Grad-CAM Visual Evidence Heatmap:</span>
-                                    <span id="gradcamStats" class="text-[11px] font-mono text-emerald-400"></span>
+                                    <span id="gradcamStats" class="text-[11px] font-mono text-amber-400"></span>
                                 </h4>
                                 <div id="gradcamContainer" class="flex items-center gap-4">
-                                    <div class="text-xs text-slate-500">No visual evidence present in active case.</div>
+                                    <div class="text-xs text-neutral-500">No visual evidence present in active case.</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Legal Decision-Support Disclaimer -->
-                        <div class="mt-4 p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 text-xs text-amber-300/90 leading-relaxed">
+                        <div class="mt-4 p-3 rounded-lg bg-amber-950/30 border border-amber-800/50 text-xs text-amber-300/90 leading-relaxed">
                             <div class="font-bold text-amber-200 mb-1 flex items-center gap-1.5">
                                 <i class="fa-solid fa-scale-balanced"></i> Legal Decision-Support Notice
                             </div>
@@ -895,29 +895,29 @@ def serve_dashboard():
         <!-- TAB 2: RESULTS (BENCHMARK V10) READ-ONLY TAB -->
         <!-- ============================================================== -->
         <div id="viewResults" class="hidden space-y-6">
-            <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="p-5 rounded-xl bg-neutral-900 border border-neutral-800">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-neutral-800 pb-3 mb-4">
                     <div>
                         <h2 class="text-base font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-table-list text-emerald-400"></i> Benchmark v10 Canonical Verification Ledger
+                            <i class="fa-solid fa-table-list text-amber-400"></i> Benchmark v10 Canonical Verification Ledger
                         </h2>
-                        <p class="text-xs text-slate-400">Dynamically queried from <code class="text-emerald-400">results/experiment_results_v10.json</code>. No typed numbers.</p>
+                        <p class="text-xs text-neutral-400">Dynamically queried from <code class="text-amber-400">results/experiment_results_v10.json</code>. No typed numbers.</p>
                     </div>
                     <div class="flex items-center gap-2 text-xs font-mono">
-                        <span class="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-400">
-                            Manifest: <span id="v10ManifestSha" class="text-slate-200 font-bold">Loading...</span>
+                        <span class="px-2 py-1 rounded bg-neutral-950 border border-neutral-800 text-neutral-400">
+                            Manifest: <span id="v10ManifestSha" class="text-neutral-200 font-bold">Loading...</span>
                         </span>
-                        <span class="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-400">
-                            Verdict: <span id="v10Verdict" class="text-emerald-400 font-bold">Loading...</span>
+                        <span class="px-2 py-1 rounded bg-neutral-950 border border-neutral-800 text-neutral-400">
+                            Verdict: <span id="v10Verdict" class="text-amber-400 font-bold">Loading...</span>
                         </span>
                     </div>
                 </div>
 
                 <!-- Table 1: Blueprint Canonical Arms A-E -->
-                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Canonical Experiments A-E (10 Seeds Evaluation)</h3>
+                <h3 class="text-xs font-bold text-neutral-300 uppercase tracking-wider mb-2">Canonical Experiments A-E (10 Seeds Evaluation)</h3>
                 <div class="overflow-x-auto mb-6">
-                    <table class="w-full text-xs text-left text-slate-300 font-mono">
-                        <thead class="text-xs text-slate-400 uppercase bg-slate-950 border-b border-slate-800">
+                    <table class="w-full text-xs text-left text-neutral-300 font-mono">
+                        <thead class="text-xs text-neutral-400 uppercase bg-neutral-950 border-b border-neutral-800">
                             <tr>
                                 <th class="px-4 py-2.5">Architecture Arm</th>
                                 <th class="px-4 py-2.5">Mean ROC-AUC &plusmn; SD</th>
@@ -926,17 +926,17 @@ def serve_dashboard():
                                 <th class="px-4 py-2.5">Mean Brier Score</th>
                             </tr>
                         </thead>
-                        <tbody id="v10ArmsTableBody" class="divide-y divide-slate-800 bg-slate-900/60">
-                            <tr><td colspan="5" class="px-4 py-3 text-center text-slate-500">Querying results JSON...</td></tr>
+                        <tbody id="v10ArmsTableBody" class="divide-y divide-neutral-800 bg-neutral-900/60">
+                            <tr><td colspan="5" class="px-4 py-3 text-center text-neutral-500">Querying results JSON...</td></tr>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Table 2: The Three Delta Comparisons & CIs -->
-                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Empirical Delta Comparisons (Paired Cluster Bootstrap 95% CIs)</h3>
+                <h3 class="text-xs font-bold text-neutral-300 uppercase tracking-wider mb-2">Empirical Delta Comparisons (Paired Cluster Bootstrap 95% CIs)</h3>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left text-slate-300 font-mono">
-                        <thead class="text-xs text-slate-400 uppercase bg-slate-950 border-b border-slate-800">
+                    <table class="w-full text-xs text-left text-neutral-300 font-mono">
+                        <thead class="text-xs text-neutral-400 uppercase bg-neutral-950 border-b border-neutral-800">
                             <tr>
                                 <th class="px-4 py-2.5">Comparison Hypothesis</th>
                                 <th class="px-4 py-2.5">Point Est &Delta;AUC</th>
@@ -945,14 +945,14 @@ def serve_dashboard():
                                 <th class="px-4 py-2.5">Empirical Verdict</th>
                             </tr>
                         </thead>
-                        <tbody id="v10DeltasTableBody" class="divide-y divide-slate-800 bg-slate-900/60">
-                            <tr><td colspan="5" class="px-4 py-3 text-center text-slate-500">Querying results JSON...</td></tr>
+                        <tbody id="v10DeltasTableBody" class="divide-y divide-neutral-800 bg-neutral-900/60">
+                            <tr><td colspan="5" class="px-4 py-3 text-center text-neutral-500">Querying results JSON...</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex justify-between">
-                    <span>Results SHA-256: <code id="v10ResultsSha" class="text-slate-400">Loading...</code></span>
+                <div class="mt-4 pt-3 border-t border-neutral-800 text-[11px] text-neutral-500 font-mono flex justify-between">
+                    <span>Results SHA-256: <code id="v10ResultsSha" class="text-neutral-400">Loading...</code></span>
                     <span>Architecture: Multimodal Forensic Deep Learning Framework</span>
                 </div>
             </div>
@@ -960,7 +960,7 @@ def serve_dashboard():
     </main>
 
     <!-- Footer Notice -->
-    <footer class="border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+    <footer class="border-t border-neutral-800/80 py-3 text-center text-xs text-neutral-500">
         ForenSightX Digital Forensics Intelligence Platform • Decision-Support System
     </footer>
 
@@ -1192,11 +1192,11 @@ def serve_dashboard():
             tierEl.textContent = `${report.risk_tier.toUpperCase()} RISK`;
 
             if (report.overall_risk_score >= 0.5) {
-                scoreEl.className = 'text-4xl font-extrabold text-rose-500 mt-2';
-                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-rose-950 text-rose-400 border border-rose-800';
+                scoreEl.className = 'text-4xl font-extrabold text-red-500 mt-2 font-mono';
+                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-red-950/80 text-red-400 border border-red-800 font-mono';
             } else {
-                scoreEl.className = 'text-4xl font-extrabold text-emerald-400 mt-2';
-                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+                scoreEl.className = 'text-4xl font-extrabold text-neutral-100 mt-2 font-mono';
+                tierEl.className = 'mt-2 inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-neutral-800 text-neutral-300 border border-neutral-700 font-mono';
             }
 
             // 2. Modality Summaries
@@ -1213,10 +1213,10 @@ def serve_dashboard():
             featGrid.innerHTML = '';
             (report.feature_vector_7d || []).forEach((val, idx) => {
                 const col = document.createElement('div');
-                col.className = 'p-2.5 rounded-lg bg-slate-950 border border-slate-800';
+                col.className = 'p-2.5 rounded-lg bg-neutral-950 border border-neutral-800';
                 col.innerHTML = `
-                    <div class="text-[10px] text-slate-400 truncate uppercase tracking-wider">${featNames[idx] || 'Feat ' + idx}</div>
-                    <div class="text-base font-extrabold text-slate-200 mt-1">${(val * 100).toFixed(1)}%</div>
+                    <div class="text-[10px] text-neutral-400 truncate uppercase tracking-wider">${featNames[idx] || 'Feat ' + idx}</div>
+                    <div class="text-base font-extrabold text-neutral-200 mt-1 font-mono">${(val * 100).toFixed(1)}%</div>
                 `;
                 featGrid.appendChild(col);
             });
@@ -1226,18 +1226,18 @@ def serve_dashboard():
             tl.innerHTML = '';
             (report.chronological_timeline || []).forEach(evt => {
                 const isObs = (evt.event_type || '').toLowerCase() === 'observed';
-                const borderCls = isObs ? 'border-l-4 border-emerald-500 bg-slate-950' : 'border-l-4 border-amber-500 bg-amber-950/20';
-                const tagCls = isObs ? 'text-emerald-400 bg-emerald-950 border border-emerald-800' : 'text-amber-400 bg-amber-950 border border-amber-800';
+                const borderCls = isObs ? 'border-l-4 border-neutral-400 bg-neutral-950' : 'border-l-4 border-amber-500 bg-neutral-950';
+                const tagCls = isObs ? 'text-neutral-300 bg-neutral-800 border border-neutral-700' : 'text-amber-400 bg-amber-950/80 border border-amber-800/80';
                 const labelText = isObs ? '[OBSERVED]' : '[INFERRED]';
 
                 const item = document.createElement('div');
-                item.className = `p-3 rounded-r-lg ${borderCls} border-t border-b border-r border-slate-800/80`;
+                item.className = `p-3 rounded-r-lg ${borderCls} border-t border-b border-r border-neutral-800/80`;
                 item.innerHTML = `
                     <div class="flex items-center justify-between text-xs mb-1">
-                        <span class="font-mono text-slate-400 text-[11px]">${evt.timestamp}</span>
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${tagCls}">${labelText}</span>
+                        <span class="font-mono text-neutral-400 text-[11px]">${evt.timestamp}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${tagCls} font-mono">${labelText}</span>
                     </div>
-                    <div class="text-xs text-slate-200 font-medium">${evt.description}</div>
+                    <div class="text-xs text-neutral-200 font-medium">${evt.description}</div>
                 `;
                 tl.appendChild(item);
             });
@@ -1246,12 +1246,12 @@ def serve_dashboard():
             const indList = document.getElementById('keyIndicatorsList');
             indList.innerHTML = '';
             if (!report.key_evidence_indicators || report.key_evidence_indicators.length === 0) {
-                indList.innerHTML = '<div class="text-xs text-slate-500">No anomalous risk indicators flagged.</div>';
+                indList.innerHTML = '<div class="text-xs text-neutral-500">No anomalous risk indicators flagged.</div>';
             } else {
                 report.key_evidence_indicators.forEach(ind => {
                     const d = document.createElement('div');
-                    d.className = 'flex items-center gap-2 text-xs text-rose-300 bg-rose-950/40 border border-rose-900/60 p-2 rounded';
-                    d.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> <span>${ind}</span>`;
+                    d.className = 'flex items-center gap-2 text-xs text-red-300 bg-red-950/40 border border-red-900/60 p-2.5 rounded-lg';
+                    d.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400"></i> <span>${ind}</span>`;
                     indList.appendChild(d);
                 });
             }
@@ -1260,7 +1260,7 @@ def serve_dashboard():
             tokensList.innerHTML = '';
             (report.textual_explainability || []).slice(0, 8).forEach(([t, s]) => {
                 const pill = document.createElement('span');
-                pill.className = 'px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono';
+                pill.className = 'px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 text-xs font-mono border border-neutral-700/60';
                 pill.textContent = `${t} (${s.toFixed(2)})`;
                 tokensList.appendChild(pill);
             });
@@ -1280,19 +1280,19 @@ def serve_dashboard():
                 if (info.heatmap_b64) {
                     gradContainer.innerHTML = `
                         <div class="space-y-1">
-                            <img src="${info.heatmap_b64}" alt="Grad-CAM Activation" class="w-32 h-32 rounded border border-slate-700 object-cover shadow">
-                            <div class="text-[10px] text-slate-400 text-center font-mono">Grad-CAM Map (${firstKey})</div>
+                            <img src="${info.heatmap_b64}" alt="Grad-CAM Activation" class="w-32 h-32 rounded border border-neutral-700 object-cover shadow">
+                            <div class="text-[10px] text-neutral-400 text-center font-mono">Grad-CAM Map (${firstKey})</div>
                         </div>
-                        <div class="text-xs text-slate-300 space-y-1">
-                            <div><span class="text-slate-500">Evidence ID:</span> <span class="font-mono text-slate-200">${firstKey}</span></div>
-                            <div><span class="text-slate-500">Peak Activation:</span> <span class="font-mono text-emerald-400 font-bold">${(info.max_activation || 0).toFixed(4)}</span></div>
-                            <div><span class="text-slate-500">Salient Tampering Detected:</span> <span class="font-mono font-bold ${info.salient_patch_detected ? 'text-rose-400' : 'text-slate-400'}">${info.salient_patch_detected ? 'TRUE (Exceeds 0.65 threshold)' : 'FALSE'}</span></div>
+                        <div class="text-xs text-neutral-300 space-y-1">
+                            <div><span class="text-neutral-500">Evidence ID:</span> <span class="font-mono text-neutral-200">${firstKey}</span></div>
+                            <div><span class="text-neutral-500">Peak Activation:</span> <span class="font-mono text-amber-400 font-bold">${(info.max_activation || 0).toFixed(4)}</span></div>
+                            <div><span class="text-neutral-500">Salient Tampering Detected:</span> <span class="font-mono font-bold ${info.salient_patch_detected ? 'text-red-400' : 'text-neutral-400'}">${info.salient_patch_detected ? 'TRUE (Exceeds 0.65 threshold)' : 'FALSE'}</span></div>
                         </div>
                     `;
                 }
             } else {
                 gradStats.textContent = '';
-                gradContainer.innerHTML = '<div class="text-xs text-slate-500">No visual evidence present in active case.</div>';
+                gradContainer.innerHTML = '<div class="text-xs text-neutral-500">No visual evidence present in active case.</div>';
             }
 
             // 7. Disclaimer
@@ -1316,13 +1316,13 @@ def serve_dashboard():
                 armsTbody.innerHTML = '';
                 data.arms_summary.forEach(a => {
                     const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-slate-900/90';
+                    tr.className = 'hover:bg-neutral-850/70';
                     tr.innerHTML = `
-                        <td class="px-4 py-2.5 font-bold text-slate-200">${a.label}</td>
-                        <td class="px-4 py-2.5 text-emerald-400 font-bold">${a.mean_auc.toFixed(4)} &plusmn; ${a.std_auc.toFixed(4)}</td>
+                        <td class="px-4 py-2.5 font-bold text-neutral-200">${a.label}</td>
+                        <td class="px-4 py-2.5 text-amber-400 font-bold">${a.mean_auc.toFixed(4)} &plusmn; ${a.std_auc.toFixed(4)}</td>
                         <td class="px-4 py-2.5">${(a.mean_accuracy * 100).toFixed(1)}%</td>
                         <td class="px-4 py-2.5">${(a.mean_f1 * 100).toFixed(1)}%</td>
-                        <td class="px-4 py-2.5 font-mono text-slate-400">${a.mean_brier.toFixed(4)}</td>
+                        <td class="px-4 py-2.5 font-mono text-neutral-400">${a.mean_brier.toFixed(4)}</td>
                     `;
                     armsTbody.appendChild(tr);
                 });
@@ -1332,25 +1332,25 @@ def serve_dashboard():
                 deltasTbody.innerHTML = '';
                 data.delta_comparisons.forEach(d => {
                     const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-slate-900/90';
+                    tr.className = 'hover:bg-neutral-850/70';
                     const ptStr = (d.point_estimate_delta_auc >= 0 ? '+' : '') + d.point_estimate_delta_auc.toFixed(4);
                     const meanStr = (d.bootstrap_mean_delta_auc >= 0 ? '+' : '') + d.bootstrap_mean_delta_auc.toFixed(4);
                     const ciStr = `[${d.ci_lower_auc.toFixed(4)}, ${d.ci_upper_auc.toFixed(4)}]`;
 
                     let badgeHtml = '';
                     if (d.benefit_status === 'no benefit') {
-                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-bold">no benefit</span>';
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700 font-bold">no benefit</span>';
                     } else if (d.ci_lower_auc > 0) {
-                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">significant gain</span>';
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-bold">significant gain</span>';
                     } else {
-                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">neutral</span>';
+                        badgeHtml = '<span class="px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700 font-bold">neutral</span>';
                     }
 
                     tr.innerHTML = `
-                        <td class="px-4 py-2.5 font-bold text-slate-200">${d.comparison}</td>
-                        <td class="px-4 py-2.5 font-bold ${d.point_estimate_delta_auc >= 0 ? 'text-emerald-400' : 'text-slate-300'}">${ptStr}</td>
-                        <td class="px-4 py-2.5 text-slate-300">${meanStr}</td>
-                        <td class="px-4 py-2.5 font-mono text-slate-400">${ciStr}</td>
+                        <td class="px-4 py-2.5 font-bold text-neutral-200">${d.comparison}</td>
+                        <td class="px-4 py-2.5 font-bold ${d.point_estimate_delta_auc >= 0 ? 'text-amber-400' : 'text-neutral-300'}">${ptStr}</td>
+                        <td class="px-4 py-2.5 text-neutral-300">${meanStr}</td>
+                        <td class="px-4 py-2.5 font-mono text-neutral-400">${ciStr}</td>
                         <td class="px-4 py-2.5">${badgeHtml}</td>
                     `;
                     deltasTbody.appendChild(tr);
