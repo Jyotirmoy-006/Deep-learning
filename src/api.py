@@ -768,9 +768,9 @@ def serve_dashboard():
                             <div class="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
                                 <span>Quick Templates:</span>
                                 <div class="flex gap-1">
-                                    <button type="button" onclick="insertSampleText('benign_chat')" class="px-1.5 py-0.5 rounded bg-[#0f2115] hover:bg-[#16301f] text-[#86efac] border border-[#264e34] text-[10px] transition font-medium">+ Benign Chat</button>
-                                    <button type="button" onclick="insertSampleText('benign_email')" class="px-1.5 py-0.5 rounded bg-[#0f2115] hover:bg-[#16301f] text-[#86efac] border border-[#264e34] text-[10px] transition font-medium">+ Benign Email</button>
-                                    <button type="button" onclick="insertSampleText('susp_chat')" class="px-1.5 py-0.5 rounded bg-red-950/70 hover:bg-red-900 text-red-300 border border-red-800/70 text-[10px] transition font-medium">+ Fraud Chat</button>
+                                    <button type="button" onclick="insertSampleText('benign_chat')" class="px-1.5 py-0.5 rounded bg-neutral-850 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-[10px] transition font-medium">Preset: Standup Chat</button>
+                                    <button type="button" onclick="insertSampleText('benign_email')" class="px-1.5 py-0.5 rounded bg-neutral-850 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-[10px] transition font-medium">Preset: Release Email</button>
+                                    <button type="button" onclick="insertSampleText('susp_chat')" class="px-1.5 py-0.5 rounded bg-neutral-850 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-[10px] transition font-medium">Preset: Wire Request</button>
                                     <button type="button" onclick="insertSampleText('clear')" class="px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-400 text-[10px] transition">Clear</button>
                                 </div>
                             </div>
