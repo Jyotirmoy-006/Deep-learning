@@ -31,7 +31,7 @@ for d in [TEST_DATA_DIR, IMG_DIR, CHAT_DIR, EMAIL_DIR, CASE_DIR]:
 from src.data_loader import ForensicDatasetGenerator
 
 # =====================================================================
-# 1. Generate Images
+# 1. Generate Realistic Forensic Visual Evidence Images (512x512)
 # =====================================================================
 
 def safe_save(img, path):
@@ -43,108 +43,376 @@ def safe_save(img, path):
 
 
 def make_suspicious_wire_invoice():
-    gen = ForensicDatasetGenerator(seed=99)
-    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 38), "WIRE INVOICE #88219", fill=(255, 255, 255))
-    draw.text((25, 95), "URGENT WIRE $48,500 - OVERSEAS VENDOR", fill=(200, 20, 20))
-    path = os.path.join(IMG_DIR, "suspicious_wire_transfer_invoice.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    # Red alert bar
+    d.rectangle([20, 20, 492, 60], fill=(210, 45, 45))
+    d.text((35, 30), "SWIFT FIN-103 WIRE VOUCHER - TRANSACTION #88219-X", fill=(255, 255, 255))
+    
+    # Header info
+    d.text((35, 70), "CITIBANK GLOBAL TRANSACTION SERVICES | NEW YORK / CAYMAN", fill=(40, 50, 70))
+    
+    # Altered/Tampered alert box
+    d.rectangle([40, 95, 472, 285], outline=(150, 0, 0), fill=(255, 230, 230), width=2)
+    d.text((55, 110), "BENEFICIARY: Offshore Escrow Holdings Cayman Ltd", fill=(150, 0, 0))
+    d.text((55, 135), "BANK: CITIBANK INT. N.A. (CAYMAN ISLANDS BRANCH)", fill=(50, 50, 50))
+    d.text((55, 160), "IBAN: KY88CITI00019283749281 | SWIFT: CITIUS33KY", fill=(50, 50, 50))
+    d.text((55, 185), "ORDERING CUSTOMER: Apex Corporate Holdings LLC", fill=(50, 50, 50))
+    d.text((55, 215), "REMITTANCE AMOUNT: $485,000.00 USD (CLEARED)", fill=(180, 20, 20))
+    d.text((55, 245), "TAMPERING FLAG: [SPLICED BENEFICIARY & ROUTING DETECTED]", fill=(200, 20, 20))
+    
+    # Dense document metadata
+    d.line([(40, 310), (472, 310)], fill=(200, 210, 220), width=2)
+    d.text((45, 325), "Value Date: 05-NOV-2026 14:22:15 UTC | Channel: Automated Fedwire", fill=(70, 80, 95))
+    d.text((45, 350), "Intermediary Clearing: CHIPS Participant #00441-NYC", fill=(70, 80, 95))
+    d.text((45, 375), "Dual-Control Authorization: OVERRIDDEN BY EXECUTIVE DIRECTIVE", fill=(160, 40, 40))
+    d.text((45, 400), "Originating Workstation IP: 198.51.100.24 (External Proxy)", fill=(70, 80, 95))
+    d.text((45, 425), "Remittance Memo: Confidential Acquisition Bridge Funding", fill=(70, 80, 95))
+    d.text((45, 455), "AUDIT STATUS: CRITICAL - HIGH VALUE ESCROW ANOMALY", fill=(180, 20, 20))
+    
+    arr = np.array(img)
+    noise = np.random.randint(0, 45, arr.shape, dtype=np.uint8)
+    arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
+    p = os.path.join(IMG_DIR, "suspicious_wire_transfer_invoice.png")
+    safe_save(Image.fromarray(arr), p)
+    return p
 
 
 def make_suspicious_login_portal():
-    gen = ForensicDatasetGenerator(seed=42)
-    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 38), "SSO LOGIN ALERT", fill=(255, 255, 255))
-    draw.text((25, 95), "EXPIRING CREDENTIAL - ENTER OTP", fill=(200, 20, 20))
-    path = os.path.join(IMG_DIR, "suspicious_spoofed_login_portal.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 60], fill=(210, 45, 45))
+    d.text((35, 30), "SECURITY ALERT: UNUSUAL SSO SIGN-IN DETECTED", fill=(255, 255, 255))
+    
+    d.rectangle([25, 70, 487, 100], fill=(230, 235, 242), outline=(190, 200, 215))
+    d.text((35, 78), "https://login.microsoftonline.corporate-sso-auth.xyz/oauth2/token", fill=(180, 30, 30))
+    
+    d.rectangle([40, 115, 472, 305], outline=(150, 0, 0), fill=(255, 230, 230), width=2)
+    d.text((55, 125), "MICROSOFT AZURE AD / CORPORATE IDENTITY ACCESS", fill=(150, 0, 0))
+    d.text((55, 150), "Your enterprise session has expired due to foreign login from IP 185.220.101.4", fill=(60, 60, 60))
+    
+    d.rectangle([55, 180, 455, 210], fill=(255, 255, 255), outline=(150, 150, 150))
+    d.text((65, 188), "Username: john.doe@company.internal", fill=(80, 80, 80))
+    
+    d.rectangle([55, 220, 455, 250], fill=(255, 255, 255), outline=(150, 150, 150))
+    d.text((65, 228), "Password: ********************", fill=(180, 20, 20))
+    
+    d.rectangle([55, 260, 455, 290], fill=(255, 255, 255), outline=(180, 30, 30), width=2)
+    d.text((65, 268), "Enter 6-Digit SMS OTP Code: [ 8 9 4 - 1 0 2 ]", fill=(200, 20, 20))
+    
+    d.text((45, 330), "Failure to authenticate credentials immediately will result in access lock.", fill=(180, 20, 20))
+    d.text((45, 360), "Phishing Indicators Detected: Spoofed .xyz domain, fake OAuth redirection.", fill=(70, 80, 95))
+    d.text((45, 390), "Certificate Status: INVALID SELF-SIGNED SSL CERTIFICATE", fill=(180, 30, 30))
+    d.text((45, 420), "Corporate IT Policy: Never enter phone OTP codes on unverified portals.", fill=(70, 80, 95))
+    d.text((45, 450), "STATUS: HARVESTED CREDENTIALS TRANSMITTED TO C2 SERVER", fill=(180, 20, 20))
+    
+    arr = np.array(img)
+    noise = np.random.randint(0, 45, arr.shape, dtype=np.uint8)
+    arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
+    p = os.path.join(IMG_DIR, "suspicious_spoofed_login_portal.png")
+    safe_save(Image.fromarray(arr), p)
+    return p
 
 
 def make_suspicious_ransomware_demand():
-    gen = ForensicDatasetGenerator(seed=55)
-    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 38), "CRITICAL: RANSOMWARE LOCK", fill=(255, 255, 255))
-    draw.text((25, 95), "PAY 2.5 BITCOIN WITHIN 24 HOURS", fill=(200, 20, 20))
-    path = os.path.join(IMG_DIR, "suspicious_ransomware_demand.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 60], fill=(210, 45, 45))
+    d.text((35, 30), "BLACK-CAT LOCKER V4.1 - SYSTEM VOLUMES ENCRYPTED", fill=(255, 255, 255))
+    
+    d.rectangle([40, 80, 472, 275], outline=(150, 0, 0), fill=(255, 230, 230), width=2)
+    d.text((55, 95), "ALL YOUR CORPORATE SERVERS, DATABASES AND BACKUPS ARE ENCRYPTED", fill=(180, 20, 20))
+    d.text((55, 125), "RANSOM DEMAND: 2.50000000 BITCOIN (~$175,000 USD)", fill=(180, 20, 20))
+    d.text((55, 155), "DEPOSIT BTC TO: bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", fill=(40, 40, 40))
+    d.text((55, 185), "DEADLINE: 23 HOURS 45 MINUTES (COUNTDOWN RUNNING)", fill=(200, 20, 20))
+    d.text((55, 215), "TOR CONTACT URL: http://blackcat7x7x7x29.onion/negotiation", fill=(70, 80, 95))
+    d.text((55, 245), "WARNING: Attempting recovery without private key will destroy keys.", fill=(150, 0, 0))
+    
+    d.rectangle([40, 295, 472, 470], fill=(240, 242, 248), outline=(200, 205, 215))
+    d.text((55, 310), "FORENSIC INCIDENT SUMMARY REPORT (AUTOMATED TELEMETRY)", fill=(60, 70, 85))
+    d.text((55, 335), "Initial Ingress Vector: Compromised VPN Gateway (CVE-2024-3400)", fill=(80, 90, 105))
+    d.text((55, 360), "Encryption Standard: ChaCha20-Poly1305 + RSA-4096 Master Key", fill=(80, 90, 105))
+    d.text((55, 385), "Exfiltrated Volume: 42.8 GB Customer Financial PII Archives", fill=(180, 20, 20))
+    d.text((55, 410), "Shadow Copies: System Volume Information Deletion Confirmed", fill=(180, 20, 20))
+    d.text((55, 435), "INCIDENT CLASSIFICATION: SEVERITY-1 ENTERPRISE RANSOMWARE", fill=(180, 20, 20))
+    
+    arr = np.array(img)
+    noise = np.random.randint(0, 45, arr.shape, dtype=np.uint8)
+    arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
+    p = os.path.join(IMG_DIR, "suspicious_ransomware_demand.png")
+    safe_save(Image.fromarray(arr), p)
+    return p
 
 
 def make_suspicious_fake_security_alert():
-    gen = ForensicDatasetGenerator(seed=77)
-    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 38), "SECURITY ALERT: TROJAN DETECTED", fill=(255, 255, 255))
-    draw.text((25, 95), "CALL SUPPORT NOW: 1-800-555-0199", fill=(200, 20, 20))
-    path = os.path.join(IMG_DIR, "suspicious_fake_security_alert.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 60], fill=(210, 45, 45))
+    d.text((35, 30), "WINDOWS DEFENDER SECURITY CENTER: CRITICAL TROJAN ALERT", fill=(255, 255, 255))
+    
+    d.rectangle([40, 80, 472, 290], outline=(150, 0, 0), fill=(255, 230, 230), width=2)
+    d.text((55, 95), "THREAT DETECTED: Trojan:Win32/Spy.AgentTesla.D6", fill=(180, 20, 20))
+    d.text((55, 125), "ALERT LEVEL: Severe | Status: Active Memory Infiltration", fill=(180, 20, 20))
+    d.text((55, 155), "IMMEDIATE ACTION REQUIRED: Call Microsoft Certified Support Hotline:", fill=(40, 40, 40))
+    d.text((55, 185), "TOLL-FREE HELPDESK: 1-800-555-0199 (CODE #8841-SEC)", fill=(180, 20, 20))
+    d.text((55, 215), "Do NOT restart workstation - Private Banking & Passwords at risk!", fill=(160, 30, 30))
+    d.text((55, 245), "Malicious Payload Origin: C:\\Users\\Public\\svchost_updater.exe", fill=(70, 80, 95))
+    
+    d.rectangle([40, 310, 472, 470], fill=(240, 242, 248), outline=(200, 205, 215))
+    d.text((55, 325), "FORENSIC SOC DECEPTION INDICATORS", fill=(60, 70, 85))
+    d.text((55, 350), "Browser Lock Technique: HTML5 Fullscreen API with cursor trap", fill=(80, 90, 105))
+    d.text((55, 375), "Phone Number Attribution: VoIP Routing associated with Tech Support Scams", fill=(180, 20, 20))
+    d.text((55, 400), "Audio Synthesizer: Continuous deceptive alarm playback detected", fill=(80, 90, 105))
+    d.text((55, 430), "STATUS: MALICIOUS SOCIAL ENGINEERING / TECH SUPPORT HOAX", fill=(180, 20, 20))
+    
+    arr = np.array(img)
+    noise = np.random.randint(0, 45, arr.shape, dtype=np.uint8)
+    arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
+    p = os.path.join(IMG_DIR, "suspicious_fake_security_alert.png")
+    safe_save(Image.fromarray(arr), p)
+    return p
 
 
 def make_suspicious_tampered_executive_memo():
-    gen = ForensicDatasetGenerator(seed=88)
-    img = gen.generate_image_sample(is_suspicious=True, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 38), "CONFIDENTIAL WIRE AUTHORIZATION", fill=(255, 255, 255))
-    draw.text((25, 95), "DISBURSE $1,450,000 USD TO CAYMAN TRUST", fill=(200, 20, 20))
-    path = os.path.join(IMG_DIR, "suspicious_tampered_executive_memo.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 60], fill=(210, 45, 45))
+    d.text((35, 30), "CONFIDENTIAL EXECUTIVE MEMORANDUM - BOARD AUDIT", fill=(255, 255, 255))
+    
+    d.text((35, 75), "FROM: Office of the Chief Executive Officer | TO: Treasury Management", fill=(50, 60, 75))
+    
+    d.rectangle([40, 105, 472, 290], outline=(150, 0, 0), fill=(255, 230, 230), width=2)
+    d.text((55, 120), "SUBJECT: STRICT CONFIDENTIAL DISBURSEMENT AUTHORIZATION", fill=(180, 20, 20))
+    d.text((55, 145), "Disburse immediately: $1,450,000.00 USD to Cayman Trust Account", fill=(180, 20, 20))
+    d.text((55, 170), "Mandatory Directive: Bypass routine multi-party verification gates.", fill=(150, 0, 0))
+    d.text((55, 195), "Rationale: Competitive bidding embargo on Project Sovereign.", fill=(50, 50, 50))
+    d.text((55, 225), "Executive Signature: [DIGITALLY COPIED / SPLICED STAMP DETECTED]", fill=(180, 20, 20))
+    d.text((55, 255), "Discrepancy: Signer Public Key mismatch against Enterprise PKI", fill=(180, 20, 20))
+    
+    d.line([(40, 310), (472, 310)], fill=(200, 210, 220), width=2)
+    d.text((45, 325), "Document Forensic Inspection: Optical Character Inconsistencies", fill=(70, 80, 95))
+    d.text((45, 350), "Font Kerning Variance: +4.2pt in disbursement paragraph (tampered block)", fill=(180, 20, 20))
+    d.text((45, 375), "PDF Metadata Creator: LibreOffice 7.4 / Converted via unknown utility", fill=(70, 80, 95))
+    d.text((45, 400), "Original Creation Timestamp: 2026-11-05 13:44:12 UTC", fill=(70, 80, 95))
+    d.text((45, 430), "FORENSIC VERDICT: HIGH CERTAINTY DOCUMENT FORGERY / BEC VECTOR", fill=(180, 20, 20))
+    
+    arr = np.array(img)
+    noise = np.random.randint(0, 45, arr.shape, dtype=np.uint8)
+    arr = np.clip(arr.astype(int) + noise, 0, 255).astype(np.uint8)
+    p = os.path.join(IMG_DIR, "suspicious_tampered_executive_memo.png")
+    safe_save(Image.fromarray(arr), p)
+    return p
 
 
 def make_benign_ci_cd_log():
-    gen = ForensicDatasetGenerator(seed=101)
-    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 45), "CI/CD BUILD SUCCESS: 69/69 PASS", fill=(30, 120, 50))
-    path = os.path.join(IMG_DIR, "benign_ci_cd_deployment_log.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 55], fill=(70, 130, 180))
+    d.text((35, 28), "TERMINAL: devops@cluster-prod-01: ~/forensightx-repo", fill=(255, 255, 255))
+    
+    d.rectangle([20, 55, 492, 480], fill=(20, 22, 28))
+    
+    d.ellipse([30, 68, 42, 80], fill=(240, 90, 80))
+    d.ellipse([48, 68, 60, 80], fill=(240, 190, 60))
+    d.ellipse([66, 68, 78, 80], fill=(80, 200, 100))
+    
+    d.text((35, 95), "devops@k8s-prod:~/forensightx$ git status", fill=(100, 220, 130))
+    d.text((35, 120), "On branch master. Your branch is up to date with origin/master.", fill=(200, 210, 225))
+    d.text((35, 145), "nothing to commit, working tree clean", fill=(160, 175, 195))
+    
+    d.text((35, 180), "devops@k8s-prod:~/forensightx$ python -m pytest -q", fill=(100, 220, 130))
+    d.text((35, 205), "................................................................. [100%]", fill=(100, 220, 130))
+    d.text((35, 230), "69 passed, 2 warnings in 10.92s (Unit & Regression Passed)", fill=(100, 220, 130))
+    
+    d.text((35, 265), "devops@k8s-prod:~/forensightx$ docker compose ps", fill=(100, 220, 130))
+    d.text((35, 290), "NAME                IMAGE               COMMAND             STATUS", fill=(130, 145, 170))
+    d.text((35, 315), "forensightx-api     forensightx:v1.0    uvicorn src.api     Up (healthy)", fill=(200, 210, 225))
+    d.text((35, 340), "forensightx-db      sqlite3:v3.42       sqlite3 init        Up (clean)", fill=(200, 210, 225))
+    
+    d.text((35, 380), "devops@k8s-prod:~/forensightx$ curl -s http://localhost:8000/api/health", fill=(100, 220, 130))
+    d.text((35, 405), "{\"status\":\"healthy\",\"service\":\"ForenSightX Forensics Engine\"}", fill=(240, 200, 100))
+    
+    d.text((35, 440), "devops@k8s-prod:~/forensightx$ exit", fill=(100, 220, 130))
+    
+    p = os.path.join(IMG_DIR, "benign_ci_cd_deployment_log.png")
+    safe_save(img, p)
+    return p
 
 
 def make_benign_dashboard_screenshot():
-    gen = ForensicDatasetGenerator(seed=202)
-    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 45), "SYSTEM METRICS NORMAL - 100% HEALTHY", fill=(30, 120, 50))
-    path = os.path.join(IMG_DIR, "benign_system_dashboard.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 55], fill=(70, 130, 180))
+    d.text((35, 28), "AWS CLOUDWATCH INFRASTRUCTURE HEALTH - US-EAST-1", fill=(255, 255, 255))
+    
+    d.rectangle([25, 65, 245, 160], fill=(255, 255, 255), outline=(210, 220, 235))
+    d.text((35, 75), "CPU UTILIZATION (AVG)", fill=(100, 110, 130))
+    d.text((35, 95), "18.4% (NORMAL)", fill=(30, 150, 70))
+    d.text((35, 125), "Max Spike: 24.1% at 14:00 UTC", fill=(130, 140, 155))
+    
+    d.rectangle([265, 65, 485, 160], fill=(255, 255, 255), outline=(210, 220, 235))
+    d.text((275, 75), "MEMORY ALLOCATION", fill=(100, 110, 130))
+    d.text((275, 95), "4.12 GB / 16.0 GB (25.7%)", fill=(30, 150, 70))
+    d.text((275, 125), "Buffer Cache: 1.8 GB Clean", fill=(130, 140, 155))
+    
+    d.rectangle([25, 175, 485, 305], fill=(255, 255, 255), outline=(210, 220, 235))
+    d.text((35, 185), "SERVICE AVAILABILITY & HEALTH MATRIX", fill=(70, 80, 100))
+    d.text((35, 210), "API Gateway (FastAPI): 100.0% Uptime | p99 Latency: 18ms", fill=(40, 140, 60))
+    d.text((35, 235), "BiLSTM Linguistic Inference Pool: 100.0% Healthy", fill=(40, 140, 60))
+    d.text((35, 260), "Visual Evidence CNN Worker Nodes: 100.0% Healthy", fill=(40, 140, 60))
+    d.text((35, 285), "7D Multimodal Risk ANN Classifier: 100.0% Operational", fill=(40, 140, 60))
+    
+    for y in range(325, 480, 30):
+        d.rectangle([25, y, 485, y+20], fill=(235, 240, 248))
+    d.text((35, 330), "Database Replica Status: Synced (SQLite WAL mode active)", fill=(80, 95, 115))
+    d.text((35, 360), "Network Ingress / Egress: 42.1 MB/s clean traffic", fill=(80, 95, 115))
+    d.text((35, 390), "Security Group Audit: 0 open malicious ingress ports", fill=(40, 140, 60))
+    d.text((35, 420), "Automated Compliance Gate G2.1: PASSED & VALIDATED", fill=(40, 140, 60))
+    d.text((35, 450), "Cluster Status: ALL SYSTEMS FULLY OPERATIONAL", fill=(30, 150, 70))
+    
+    p = os.path.join(IMG_DIR, "benign_system_dashboard.png")
+    safe_save(img, p)
+    return p
 
 
 def make_benign_slack_team_chat():
-    gen = ForensicDatasetGenerator(seed=303)
-    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 45), "SLACK: #ENGINEERING - SPRINT STANDUP 2PM", fill=(30, 120, 50))
-    path = os.path.join(IMG_DIR, "benign_slack_team_chat.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(26, 29, 33))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 55], fill=(70, 130, 180))
+    d.text((35, 28), "SLACK: #general-engineering | Core Platform Team", fill=(255, 255, 255))
+    
+    d.rectangle([20, 55, 140, 480], fill=(18, 20, 24))
+    d.text((28, 70), "CHANNELS", fill=(140, 150, 170))
+    d.text((28, 95), "# general", fill=(180, 190, 210))
+    d.text((28, 120), "# engineering", fill=(255, 255, 255))
+    d.text((28, 145), "# releases", fill=(180, 190, 210))
+    d.text((28, 170), "# standup", fill=(180, 190, 210))
+    d.text((28, 210), "DIRECT MSGS", fill=(140, 150, 170))
+    d.text((28, 235), "@ Sarah Chen", fill=(180, 190, 210))
+    d.text((28, 260), "@ David Kim", fill=(180, 190, 210))
+    d.text((28, 285), "@ Alex Mercer", fill=(180, 190, 210))
+    
+    d.rectangle([140, 55, 492, 480], fill=(26, 29, 33))
+    
+    d.text((155, 75), "Sarah Chen (Tech Lead) [10:01 AM]", fill=(120, 170, 230))
+    d.text((155, 95), "Good morning team! Standup time. Let's do a quick sync.", fill=(220, 225, 230))
+    
+    d.text((155, 130), "Alex Mercer (ML Engineer) [10:02 AM]", fill=(120, 170, 230))
+    d.text((155, 150), "All 69 unit tests passed cleanly in 10.9s on staging.", fill=(220, 225, 230))
+    d.text((155, 170), "BiLSTM and CNN checkpoints loaded via factory with strict=True.", fill=(220, 225, 230))
+    
+    d.text((155, 205), "David Kim (Frontend) [10:04 AM]", fill=(120, 170, 230))
+    d.text((155, 225), "New tactical dark forensic theme deployed and verified.", fill=(220, 225, 230))
+    d.text((155, 245), "Grad-CAM heatmaps render smoothly at 60fps.", fill=(220, 225, 230))
+    
+    d.text((155, 280), "Sarah Chen (Tech Lead) [10:05 AM]", fill=(120, 170, 230))
+    d.text((155, 300), "Awesome work everyone. Sprint demo at 2 PM is approved.", fill=(220, 225, 230))
+    d.text((155, 320), "Who is joining for lunch at 12:30 PM at the cafeteria?", fill=(220, 225, 230))
+    
+    d.rectangle([155, 360, 475, 440], fill=(34, 38, 44), outline=(50, 56, 66))
+    d.text((165, 375), "Reactions: thumbs-up (6), checkmark (4), coffee (5)", fill=(160, 175, 195))
+    d.text((165, 405), "Status: Verified Routine Internal Communication", fill=(100, 200, 120))
+    
+    p = os.path.join(IMG_DIR, "benign_slack_team_chat.png")
+    safe_save(img, p)
+    return p
 
 
 def make_benign_vendor_receipt_pdf():
-    gen = ForensicDatasetGenerator(seed=404)
-    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 45), "ACROBAT PDF: AWS INVOICE OCT 2026 PAID", fill=(30, 120, 50))
-    path = os.path.join(IMG_DIR, "benign_vendor_receipt_pdf.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(32, 33, 36))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 55], fill=(70, 130, 180))
+    d.text((35, 28), "ADOBE ACROBAT: AWS_OCTOBER_INVOICE_99210.PDF", fill=(255, 255, 255))
+    
+    d.rectangle([20, 55, 492, 85], fill=(44, 46, 51), outline=(60, 64, 72))
+    d.text((35, 63), "File   Edit   View   Tools | Page 1 of 1 | Zoom: 100% | Verified Signed", fill=(180, 190, 205))
+    
+    d.rectangle([40, 95, 472, 470], fill=(24, 25, 28), outline=(50, 55, 65))
+    
+    d.text((60, 110), "AMAZON WEB SERVICES BILLING STATEMENT", fill=(220, 225, 235))
+    d.text((60, 135), "Invoice Number: #AWS-2026-99210-INV | Date: October 31, 2026", fill=(150, 160, 175))
+    d.text((60, 160), "Account ID: 9928-1029-4410 (Corporate Dev Environment)", fill=(150, 160, 175))
+    d.line([(60, 185), (452, 185)], fill=(60, 65, 75), width=2)
+    
+    d.text((60, 195), "SERVICE DESCRIPTION                  USAGE        AMOUNT", fill=(180, 190, 205))
+    d.line([(60, 215), (452, 215)], fill=(50, 55, 65), width=1)
+    d.text((60, 225), "Amazon EC2 Compute Instances         744.00 Hrs   $24.80 USD", fill=(160, 175, 195))
+    d.text((60, 250), "Amazon S3 Standard Storage           500.00 GB    $11.20 USD", fill=(160, 175, 195))
+    d.text((60, 275), "Amazon CloudWatch Metrics & Logs     10 Metrics   $ 6.50 USD", fill=(160, 175, 195))
+    d.line([(60, 305), (452, 305)], fill=(50, 55, 65), width=1)
+    
+    d.text((60, 320), "TOTAL CHARGES DUE:                                $42.50 USD", fill=(220, 225, 235))
+    
+    d.rectangle([250, 360, 440, 420], outline=(80, 180, 100), width=2)
+    d.text((275, 375), "PAID IN FULL", fill=(100, 200, 120))
+    d.text((260, 395), "AUTO-PAY: VISA #****-8812", fill=(100, 200, 120))
+    
+    d.text((60, 440), "Status: Verified Legitimate Corporate Vendor Billing", fill=(100, 200, 120))
+    
+    p = os.path.join(IMG_DIR, "benign_vendor_receipt_pdf.png")
+    safe_save(img, p)
+    return p
 
 
 def make_benign_vscode_editor_diff():
-    gen = ForensicDatasetGenerator(seed=505)
-    img = gen.generate_image_sample(is_suspicious=False, size=(256, 256))
-    draw = ImageDraw.Draw(img)
-    draw.text((25, 45), "VS CODE: TEST_REGRESSION.PY PASS", fill=(30, 120, 50))
-    path = os.path.join(IMG_DIR, "benign_vscode_editor_diff.png")
-    safe_save(img, path)
-    return path
+    size = (512, 512)
+    img = Image.new("RGB", size, color=(245, 247, 250))
+    d = ImageDraw.Draw(img)
+    
+    d.rectangle([20, 20, 492, 55], fill=(70, 130, 180))
+    d.text((35, 28), "VISUAL STUDIO CODE: test_regression.py - ForenSightX", fill=(255, 255, 255))
+    
+    d.rectangle([20, 55, 492, 480], fill=(30, 30, 30))
+    
+    d.rectangle([20, 55, 110, 480], fill=(37, 37, 38))
+    d.text((25, 65), "EXPLORER", fill=(140, 140, 140))
+    d.text((25, 85), "> src/", fill=(180, 180, 180))
+    d.text((25, 105), "v tests/", fill=(220, 220, 220))
+    d.text((32, 125), "test_reg.py", fill=(255, 255, 255))
+    d.text((25, 145), "> models/", fill=(180, 180, 180))
+    d.text((25, 165), "> docs/", fill=(180, 180, 180))
+    
+    d.text((120, 65), "1  import pytest", fill=(180, 140, 200))
+    d.text((120, 85), "2  from src.models import build_model", fill=(180, 140, 200))
+    d.text((120, 105), "3  ", fill=(200, 200, 200))
+    d.text((120, 125), "4  def test_multimodal_fusion_forward():", fill=(220, 220, 140))
+    d.text((120, 145), "5      model = build_model({'type': 'ann_7d'})", fill=(150, 200, 250))
+    d.text((120, 165), "6      x = torch.zeros((1, 7))", fill=(150, 200, 250))
+    d.text((120, 185), "7      out = model(x)", fill=(150, 200, 250))
+    d.text((120, 205), "8      assert out.shape == (1, 1)", fill=(200, 140, 140))
+    d.text((120, 225), "9      assert 0.0 <= out.item() <= 1.0", fill=(200, 140, 140))
+    
+    d.rectangle([110, 260, 492, 480], fill=(24, 24, 24))
+    d.text((120, 270), "TERMINAL  PROBLEMS  OUTPUT  DEBUG CONSOLE", fill=(140, 140, 140))
+    d.line([(110, 290), (492, 290)], fill=(50, 50, 50), width=1)
+    
+    d.text((120, 305), "PS C:\\workspace\\forensightx> python -m pytest -q", fill=(220, 220, 220))
+    d.text((120, 330), "................................................................. [100%]", fill=(80, 200, 120))
+    d.text((120, 360), "69 passed, 2 warnings in 10.92s", fill=(80, 200, 120))
+    d.text((120, 390), "Status: 100% Regression Suite Passing Cleanly", fill=(80, 200, 120))
+    d.text((120, 420), "Branch: master (working tree clean, zero uncommitted changes)", fill=(160, 175, 195))
+    
+    p = os.path.join(IMG_DIR, "benign_vscode_editor_diff.png")
+    safe_save(img, p)
+    return p
 
 
 # =====================================================================

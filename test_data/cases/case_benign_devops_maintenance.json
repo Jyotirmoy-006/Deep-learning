@@ -2,12 +2,12 @@
   "case_id": "CASE-TEST-2026-BENIGN",
   "title": "Scheduled DevOps Release & Standup Audit",
   "investigator": "Compliance Examiner",
-  "created_at": "2026-11-05T23:21:11.252607",
+  "created_at": "2026-11-06T00:06:58.819687",
   "evidence_items": [
     {
       "evidence_id": "EVID-101",
       "evidence_type": "email",
-      "timestamp": "2026-11-05T22:21:11.252607",
+      "timestamp": "2026-11-05T23:06:58.819687",
       "content": "Hi Engineering,\n\nWe are pleased to announce that ForenSightX v1.0 has been deployed to the production staging environment.\nKey milestones achieved:\n- 69 automated tests passing across CNN, BiLSTM, 7D Fusion ANN, and VAE modules.\n- Interactive web dashboard running on port 8000 with Grad-CAM visual heatmaps.\n- Full benchmark results accessible via /api/results_v10.\n\nDocumentation is available at: https://internal.company.internal/docs/forensightx\n\nRegards,\nRelease Management Team",
       "metadata": {
         "From": "\"Release Management\" <releases@company.internal>",
@@ -23,7 +23,7 @@
     {
       "evidence_id": "EVID-102",
       "evidence_type": "chat",
-      "timestamp": "2026-11-05T22:41:11.252607",
+      "timestamp": "2026-11-05T23:26:58.819687",
       "content": "[10:00:15] Tech Lead: Good morning team! Let's kick off the daily sprint standup.\n[10:01:02] Frontend Dev: Yesterday I finalized the responsive layout for the metrics cards. Today I am connecting the WebSocket status feed.\n[10:02:10] Backend Dev: I reviewed the PR for the model checkpoint loading factory. All 69 unit tests passed cleanly with 0 errors.\n[10:03:05] QA Lead: Automated test suites and smoke verification scripts ran in 10.9s on staging. All endpoints returned HTTP 200.\n[10:04:00] Tech Lead: Excellent work. Let's merge the branch to master and prepare for the sprint demo at 2 PM. Who's joining for lunch?\n",
       "metadata": {
         "platform": "Teams",
@@ -34,7 +34,7 @@
     {
       "evidence_id": "EVID-103",
       "evidence_type": "image",
-      "timestamp": "2026-11-05T23:01:11.252607",
+      "timestamp": "2026-11-05T23:46:58.819687",
       "content": "test_data/images/benign_ci_cd_deployment_log.png",
       "metadata": {
         "filename": "benign_ci_cd_deployment_log.png",

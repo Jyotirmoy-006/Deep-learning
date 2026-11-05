@@ -14,10 +14,10 @@
 - **email_anomaly:** 0.6000
 
 ## Chronological Timeline
-- `[OBSERVED]` 2026-11-05T22:45:54.077492: Email event logged: Subject 'URGENT: Immediate Confidential Wire Transfer Required'
-- `[OBSERVED]` 2026-11-05T22:52:54.077492: Chat communication recorded: 'Please send the one-time password (OTP) sent to your mobile ...'
-- `[OBSERVED]` 2026-11-05T23:00:54.077492: Visual artifact/screenshot recorded (`EVID-003`)
-- `[INFERRED]` 2026-11-05T23:00:54.077492: Inferred Incident Trajectory: span of 900.0s between initiation and final logged event.
+- `[OBSERVED]` 2026-11-05T23:23:09.168029: Email event logged: Subject 'URGENT: Immediate Confidential Wire Transfer Required'
+- `[OBSERVED]` 2026-11-05T23:30:09.168029: Chat communication recorded: 'Please send the one-time password (OTP) sent to your mobile ...'
+- `[OBSERVED]` 2026-11-05T23:38:09.168029: Visual artifact/screenshot recorded (`EVID-003`)
+- `[INFERRED]` 2026-11-05T23:38:09.168029: Inferred Incident Trajectory: span of 900.0s between initiation and final logged event.
 
 ## Key Forensic Indicators
 - ⚠️ Urgency & Suspicious Language Pattern (BiLSTM)
