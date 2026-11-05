@@ -384,8 +384,18 @@ def upload_evidence_endpoint(case_id: str, req: UploadEvidenceRequest):
     elif req.text_content:
         content_val = req.text_content
         meta = req.metadata or {"filename": fn}
+    elif req.content_b64:
+        # User uploaded a text or JSON file that was read as base64 Data URI
+        raw_b64 = req.content_b64
+        if "base64," in raw_b64:
+            raw_b64 = raw_b64.split("base64,")[1]
+        try:
+            content_val = base64.b64decode(raw_b64).decode("utf-8", errors="replace")
+        except Exception:
+            content_val = req.content_b64
+        meta = req.metadata or {"filename": fn}
     else:
-        content_val = req.content_b64 or ""
+        content_val = ""
         meta = req.metadata or {}
 
     cursor.execute(
@@ -1360,6 +1370,27 @@ def serve_dashboard():
                 console.error('Failed to load results table:', err);
             }
         }
+
+        // Auto-detect and populate file text into textarea
+        document.getElementById('evidenceFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const typeSelect = document.getElementById('uploadTypeSelect');
+            if (file.name.endsWith('.txt') || file.name.endsWith('.json') || file.name.endsWith('.log')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    document.getElementById('textEvidenceInput').value = evt.target.result;
+                    if (file.name.includes('email') || file.name.endsWith('.json')) {
+                        typeSelect.value = 'email';
+                    } else {
+                        typeSelect.value = 'chat';
+                    }
+                };
+                reader.readAsText(file);
+            } else if (file.type.startsWith('image/') || file.name.endsWith('.png') || file.name.endsWith('.jpg')) {
+                typeSelect.value = 'image';
+            }
+        });
 
         window.onload = async () => {
             // Load benign sample by default for a clean, non-alarming initial state
